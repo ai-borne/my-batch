@@ -7,6 +7,9 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 const projectId = 'demo-no-project'
 const batchId = 'batch-a'
+const authEmulatorHost = process.env.FIREBASE_AUTH_EMULATOR_HOST ?? '127.0.0.1:9099'
+const firestoreEmulatorHost = process.env.FIRESTORE_EMULATOR_HOST ?? '127.0.0.1:8080'
+const functionsEmulatorPort = Number(process.env.AJINKYANS_FUNCTIONS_EMULATOR_PORT ?? '5001')
 const adminApp = getApps().length ? getApps()[0] : initializeAdminApp({ projectId })
 const adminDb = getFirestore(adminApp)
 const clients: ReturnType<typeof initializeApp>[] = []
@@ -15,14 +18,14 @@ async function signIn(email: string) {
   const app = initializeApp({ apiKey: 'test', authDomain: 'test.invalid', projectId, appId: `test-${email}` }, `client-${email}`)
   clients.push(app)
   const auth = getAuth(app)
-  connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true })
+  connectAuthEmulator(auth, `http://${authEmulatorHost}`, { disableWarnings: true })
   await createUserWithEmailAndPassword(auth, email, 'password-123')
   const functions = getFunctions(app)
-  connectFunctionsEmulator(functions, '127.0.0.1', 5001)
+  connectFunctionsEmulator(functions, '127.0.0.1', functionsEmulatorPort)
   return { auth, call: <T>(name: string, data: unknown) => httpsCallable<unknown, T>(functions, name)(data) }
 }
 
-beforeAll(() => { process.env.FIRESTORE_EMULATOR_HOST = '127.0.0.1:8080' })
+beforeAll(() => { process.env.FIRESTORE_EMULATOR_HOST = firestoreEmulatorHost })
 beforeEach(async () => { await adminDb.recursiveDelete(adminDb.collection('batches').doc(batchId)); await adminDb.doc(`batches/${batchId}`).set({ name: 'Batch A' }) })
 afterAll(async () => { await Promise.all(clients.map(deleteApp)) })
 

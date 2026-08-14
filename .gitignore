@@ -11,3 +11,4 @@ ui-debug.log
 functions/lib/
 playwright-report/
 test-results/
+coverage/
