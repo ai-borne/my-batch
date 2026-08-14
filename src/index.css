@@ -28,6 +28,11 @@ textarea { min-height: 90px; resize: vertical; }
 .member-row small { display: block; margin-top: 3px; color: #69716d; }
 .member-actions { display: flex; flex-wrap: wrap; justify-content: end; gap: 6px; }
 .member-actions select, .member-actions button { width: auto; margin: 0; padding: 7px 9px; font-size: 12px; }
+.finance-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 18px; }
+.finance-summary span { display: grid; gap: 4px; }
+.finance-summary small { color: #69716d; }
+.finance-summary strong { font-size: 21px; }
+.payment-qr { display: block; width: min(100%, 280px); margin: 18px auto 0; border-radius: 12px; }
 
 .app { min-height: 100vh; background: #f7f5f0; color: #17201c; transition: background .2s, color .2s; }
 .app.dark { background: #0d1110; color: #f2f3ef; }
@@ -100,6 +105,7 @@ h2 { font-size: 20px; letter-spacing: -.035em; margin-bottom: 6px; }
   .timeline-item { font-size: 11px; }
   .house-grid { grid-template-columns: repeat(2, 1fr); }
   .field-row { grid-template-columns: 1fr; }
+  .finance-summary { grid-template-columns: 1fr; }
   .member-row { align-items: flex-start; flex-direction: column; }
   .member-actions { justify-content: start; }
 }

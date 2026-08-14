@@ -2,7 +2,7 @@ import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
 
 const links = [
-  ['home', 'Home'], ['houses', 'Houses'], ['reunion', 'Reunion'], ['account', 'Account'],
+  ['home', 'Home'], ['houses', 'Houses'], ['reunion', 'Reunion'], ['fund', 'Fund'], ['account', 'Account'],
 ] as const
 
 export function BatchShell() {

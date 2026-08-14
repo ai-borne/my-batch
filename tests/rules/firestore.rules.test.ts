@@ -17,12 +17,27 @@ beforeEach(async () => { await environment.clearFirestore(); await environment.w
   await admin.doc('batches/batch-a/profiles/coordinator').set({ uid: 'coordinator', displayName: 'Coordinator' })
   await admin.doc('batches/batch-a/reunion/config').set({ rsvpCutoffAt: new Date('2027-01-01') })
   await admin.doc('batches/batch-a/paymentClaims/claim').set({ memberUid: 'member', utr: 'UTR' })
+  await admin.doc('batches/batch-a/fundSummary/public').set({ collectedPaise: 10000, balancePaise: 10000 })
+  await admin.doc('batches/batch-a/expenses/approved').set({ status: 'approved', category: 'Venue', amountPaise: 5000 })
+  await admin.doc('batches/batch-a/expenses/draft').set({ status: 'draft', category: 'Venue', amountPaise: 5000 })
 }) })
 afterAll(async () => { if (environment) await environment.cleanup() })
 describe('private batch boundaries', () => {
   it('denies unauthenticated and pending reads', async () => { const anonymous = db(); const pending = db('pending'); await assertFails(anonymous.doc('batches/batch-a/profiles/member').get()); await assertFails(pending.doc('batches/batch-a/profiles/member').get()) })
   it('allows active members only within their batch', async () => { const member = db('member'); const otherBatch = db('other-batch'); await assertSucceeds(member.doc('batches/batch-a/profiles/member').get()); await assertFails(otherBatch.doc('batches/batch-a/profiles/member').get()) })
   it('keeps payment claims Coordinator-only', async () => { const member = db('member'); const coordinator = db('coordinator'); await assertFails(member.doc('batches/batch-a/paymentClaims/claim').get()); await assertSucceeds(coordinator.doc('batches/batch-a/paymentClaims/claim').get()) })
+  it('exposes only aggregate finances and approved expenses to batchmates', async () => {
+    const member = db('member')
+    await assertSucceeds(member.doc('batches/batch-a/fundSummary/public').get())
+    await assertSucceeds(member.doc('batches/batch-a/expenses/approved').get())
+    await assertFails(member.doc('batches/batch-a/expenses/draft').get())
+  })
+  it('denies client writes to finance state and audit records', async () => {
+    const member = db('member'); const coordinator = db('coordinator')
+    await assertFails(member.doc('batches/batch-a/fundSummary/public').set({ collectedPaise: 999999 }))
+    await assertFails(member.doc('batches/batch-a/paymentClaims/new').set({ status: 'verified' }))
+    await assertFails(coordinator.doc('batches/batch-a/auditEvents/new').set({ action: 'finance.verified' }))
+  })
   it('does not permit a client to grant a Coordinator role', async () => { const member = db('member'); await assertFails(member.doc('batches/batch-a/memberships/member').set({ status: 'active', role: 'coordinator' })) })
   it('lets a member edit only their own profile without changing their house', async () => {
     const member = db('member')

@@ -1,6 +1,6 @@
 # Ajinkyans — MVP Implementation Plan
 
-**Status:** Phase 2 complete. Phase 3 is next.
+**Status:** Phase 3 complete. Phase 4 is next.
 
 ## Success target
 
@@ -40,6 +40,8 @@ Deliver a private, secure MVP for the Ajinkyans 2002 batch: approved Google-auth
 **Exit criteria:** an approved member can edit their own profile and RSVP; a Coordinator can manage membership, house assignment, reunion details, and RSVP exceptions; all authorization tests and build pass.
 
 ## Phase 3 — Payments and financial transparency
+
+**Status:** complete.
 
 1. Implement Coordinator payment instructions and UPI QR configuration.
 2. Implement payment-claim submission and Coordinator review, clarification, verification, and rejection.

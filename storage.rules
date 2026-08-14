@@ -11,6 +11,7 @@ service firebase.storage {
     function image() { return request.resource.contentType.matches('image/(jpeg|png|heic|webp)') && request.resource.size <= 20 * 1024 * 1024; }
     function video() { return request.resource.contentType.matches('video/(mp4|quicktime)') && request.resource.size <= 250 * 1024 * 1024; }
     function allowedMedia() { return image() || video(); }
+    function receipt() { return request.resource.size <= 20 * 1024 * 1024 && request.resource.contentType.matches('(image/(jpeg|png|heic|webp)|application/pdf)'); }
 
     match /batches/{batchId}/profiles/{uid}/avatar/{fileName} {
       allow read: if active(batchId);
@@ -21,8 +22,16 @@ service firebase.storage {
       allow create: if active(batchId) && allowedMedia() && firestore.get(/databases/(default)/documents/batches/$(batchId)/posts/$(postId)).data.authorUid == request.auth.uid;
       allow update, delete: if false;
     }
-    match /batches/{batchId}/payments/{claimId}/evidence/{fileName} { allow read, write: if coordinator(batchId); }
-    match /batches/{batchId}/expenses/{expenseId}/receipts/{fileName} { allow read: if active(batchId); allow write: if coordinator(batchId); }
+    match /batches/{batchId}/payments/{claimId}/evidence/{fileName} {
+      allow read: if coordinator(batchId);
+      allow create: if active(batchId) && image() && firestore.get(/databases/(default)/documents/batches/$(batchId)/paymentClaims/$(claimId)).data.memberUid == request.auth.uid && firestore.get(/databases/(default)/documents/batches/$(batchId)/paymentClaims/$(claimId)).data.status in ['submitted', 'underReview'];
+      allow update, delete: if coordinator(batchId);
+    }
+    match /batches/{batchId}/expenses/{expenseId}/receipts/{fileName} {
+      allow read: if coordinator(batchId) || (active(batchId) && firestore.get(/databases/(default)/documents/batches/$(batchId)/expenses/$(expenseId)).data.status == 'approved');
+      allow create: if coordinator(batchId) && receipt();
+      allow update, delete: if coordinator(batchId);
+    }
     match /batches/{batchId}/reunion/qr/{fileName} { allow read: if active(batchId); allow write: if coordinator(batchId) && image(); }
   }
 }
