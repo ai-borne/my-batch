@@ -22,7 +22,7 @@ service cloud.firestore {
     match /batches/{batchId} {
       allow read: if active(batchId);
       allow write: if false;
-      match /memberships/{uid} { allow read: if active(batchId); allow write: if false; }
+      match /memberships/{uid} { allow read: if self(uid) || active(batchId); allow write: if false; }
       match /accessRequests/{requestId} {
         allow create: if signedIn() && accessRequestShape() && request.resource.data.batchId == batchId && request.resource.data.status == 'pending';
         allow read: if signedIn() && (resource.data.uid == request.auth.uid || coordinator(batchId));

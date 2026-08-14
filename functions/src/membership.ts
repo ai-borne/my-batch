@@ -2,7 +2,9 @@ import { FieldValue } from "firebase-admin/firestore"
 import { HttpsError, onCall } from "firebase-functions/v2/https"
 import { db, houseIds, limitSensitiveOperation, requireBatchId, requireCoordinator, requireRecentAuthentication, requireText, requireUid } from "./shared.js"
 
-export const approveMembership = onCall({ enforceAppCheck: true }, async (request) => {
+const enforceAppCheck = process.env.FUNCTIONS_EMULATOR !== 'true'
+
+export const approveMembership = onCall({ enforceAppCheck }, async (request) => {
   const { batchId, requestId } = request.data as { batchId?: string; requestId?: string }
   if (!batchId || !requestId) throw new HttpsError('invalid-argument', 'batchId and requestId are required.')
 
@@ -38,7 +40,7 @@ export const approveMembership = onCall({ enforceAppCheck: true }, async (reques
   return { approved: true }
 })
 
-export const rejectMembership = onCall({ enforceAppCheck: true }, async (request) => {
+export const rejectMembership = onCall({ enforceAppCheck }, async (request) => {
   const { batchId, requestId, reason } = request.data as { batchId?: unknown; requestId?: unknown; reason?: unknown }
   requireBatchId(batchId)
   if (typeof requestId !== 'string') throw new HttpsError('invalid-argument', 'requestId is required.')
@@ -56,7 +58,7 @@ export const rejectMembership = onCall({ enforceAppCheck: true }, async (request
   return { rejected: true }
 })
 
-export const manageMembership = onCall({ enforceAppCheck: true }, async (request) => {
+export const manageMembership = onCall({ enforceAppCheck }, async (request) => {
   const { batchId, memberUid, action, houseId } = request.data as { batchId?: unknown; memberUid?: unknown; action?: unknown; houseId?: unknown }
   requireBatchId(batchId)
   if (typeof memberUid !== 'string' || !['suspend', 'remove', 'reinstate', 'assignHouse'].includes(String(action))) {

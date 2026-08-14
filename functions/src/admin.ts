@@ -2,7 +2,7 @@ import { FieldValue } from 'firebase-admin/firestore'
 import { HttpsError, onCall } from 'firebase-functions/v2/https'
 import { db, limitSensitiveOperation, requireBatchId, requireRecentAuthentication, requireUid } from './shared.js'
 
-export const assignCoordinator = onCall({ enforceAppCheck: true }, async (request) => {
+export const assignCoordinator = onCall({ enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== 'true' }, async (request) => {
   const { batchId, memberUid, action } = request.data as { batchId?: unknown; memberUid?: unknown; action?: unknown }
   requireBatchId(batchId)
   if (typeof memberUid !== 'string' || !['assign', 'revoke'].includes(String(action))) throw new HttpsError('invalid-argument', 'A member and assign or revoke action are required.')

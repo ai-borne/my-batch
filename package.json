@@ -11,6 +11,7 @@
     "test:architecture": "node scripts/check-architecture.mjs",
     "test:watch": "vitest",
     "test:rules": "firebase emulators:exec --only auth,firestore,storage \"vitest run --config vitest.rules.config.ts\"",
+    "test:functions": "npm --prefix functions run build && firebase emulators:exec --only auth,firestore,functions \"vitest run --config vitest.functions.config.ts\"",
     "test:e2e": "playwright test",
     "emulators": "firebase emulators:start",
     "seed:staging": "node scripts/seed-staging.mjs"
