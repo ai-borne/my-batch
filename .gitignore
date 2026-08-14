@@ -6,6 +6,7 @@ dist/
 !.env.example
 .firebaserc
 firebase-debug.log
+firestore-debug.log
 ui-debug.log
 functions/lib/
 playwright-report/

@@ -8,7 +8,7 @@ service cloud.firestore {
     function active(batchId) { return signedIn() && membership(batchId).data.status == 'active'; }
     function coordinator(batchId) { return active(batchId) && membership(batchId).data.role == 'coordinator'; }
     function self(uid) { return signedIn() && request.auth.uid == uid; }
-    function unchanged(fields) { return request.resource.data.diff(resource.data).unchangedKeys().hasOnly(fields); }
+    function profileShape(uid) { return request.resource.data.uid == uid && request.resource.data.keys().hasOnly(['uid', 'displayName', 'avatarPath', 'houseId', 'city', 'profession', 'about', 'favouriteSchoolMemory', 'teacherOrActivity', 'socialLinks', 'updatedAt']); }
 
     match /users/{uid} {
       allow read, create, update: if self(uid);
@@ -26,10 +26,11 @@ service cloud.firestore {
       }
       match /profiles/{uid} {
         allow read: if active(batchId);
-        allow create: if active(batchId) && self(uid) && request.resource.data.uid == uid;
-        allow update: if active(batchId) && self(uid) && request.resource.data.uid == uid && unchanged(['uid', 'houseId']);
+        allow create: if active(batchId) && self(uid) && profileShape(uid);
+        allow update: if active(batchId) && self(uid) && profileShape(uid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'avatarPath', 'city', 'profession', 'about', 'favouriteSchoolMemory', 'teacherOrActivity', 'socialLinks', 'updatedAt']);
         allow delete: if false;
       }
+      match /reunion/config { allow read: if active(batchId); allow write: if coordinator(batchId); }
       match /rsvps/{uid} { allow read: if active(batchId); allow write: if false; }
       match /paymentConfig/current { allow read: if active(batchId); allow write: if coordinator(batchId); }
       match /paymentClaims/{claimId} { allow read: if coordinator(batchId); allow write: if false; }

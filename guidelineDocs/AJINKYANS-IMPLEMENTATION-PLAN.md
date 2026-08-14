@@ -1,6 +1,6 @@
 # Ajinkyans — MVP Implementation Plan
 
-**Status:** Phase 0 complete. Phase 1 is next.
+**Status:** Phase 2 complete. Phase 3 is next.
 
 ## Success target
 
@@ -18,7 +18,7 @@ Deliver a private, secure MVP for the Ajinkyans 2002 batch: approved Google-auth
 
 ## Phase 1 — Secure foundation
 
-**Status:** next.
+**Status:** complete.
 
 1. Add Tailwind, React Router, Firebase, Vitest, Firebase Emulator Suite, and Playwright.
 2. Add safe environment templates and ignore real local configuration/secrets.
@@ -30,6 +30,8 @@ Deliver a private, secure MVP for the Ajinkyans 2002 batch: approved Google-auth
 **Exit criteria:** pending users cannot read private data; approved users can access their batch only; Coordinator approval works through a trusted function; rules tests and build pass.
 
 ## Phase 2 — Identity, directory, and RSVP
+
+**Status:** complete.
 
 1. Implement batch shell, profile, houses, member directory, and house assignment.
 2. Implement Coordinator membership management: approve, suspend, remove, and reinstate.
