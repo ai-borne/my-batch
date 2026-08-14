@@ -51,7 +51,7 @@ export const reviewPaymentClaim = onCall(async (request) => {
   if (typeof claimId !== 'string' || !claimId || !['underReview', 'verified', 'rejected'].includes(String(status))) throw new HttpsError('invalid-argument', 'A claim and valid review status are required.')
   if (note !== undefined && (typeof note !== 'string' || note.length > 1000)) throw new HttpsError('invalid-argument', 'Review note is invalid.')
   const actorUid = requireUid(request.auth)
-  await requireCoordinator(batchId, actorUid)
+  await requireCoordinator(batchId, request.auth)
   await db.runTransaction(async (transaction) => {
     const claimRef = db.doc(`batches/${batchId}/paymentClaims/${claimId}`)
     const claim = await transaction.get(claimRef)
@@ -65,7 +65,7 @@ export const reviewPaymentClaim = onCall(async (request) => {
 
 export const saveExpense = onCall(async (request) => {
   const { batchId, category, amountPaise, vendor, expenseDate, notes, receiptStoragePath } = request.data as Record<string, unknown>
-  requireBatchId(batchId); const actorUid = requireUid(request.auth); await requireCoordinator(batchId, actorUid)
+  requireBatchId(batchId); const actorUid = requireUid(request.auth); await requireCoordinator(batchId, request.auth)
   const amount = requirePaise(amountPaise, 'amountPaise'); const expenseCategory = requireText(category, 'category', 80); const expenseVendor = requireText(vendor, 'vendor', 160)
   if (typeof expenseDate !== 'string' || Number.isNaN(Date.parse(expenseDate))) throw new HttpsError('invalid-argument', 'expenseDate is invalid.')
   if (notes !== undefined && (typeof notes !== 'string' || notes.length > 1000)) throw new HttpsError('invalid-argument', 'notes are invalid.')
@@ -80,7 +80,7 @@ export const attachExpenseReceipt = onCall(async (request) => {
   const { batchId, expenseId, receiptStoragePath } = request.data as Record<string, unknown>
   requireBatchId(batchId)
   if (typeof expenseId !== 'string' || typeof receiptStoragePath !== 'string' || !receiptStoragePath.startsWith(`batches/${batchId}/expenses/${expenseId}/receipts/`)) throw new HttpsError('invalid-argument', 'Receipt details are invalid.')
-  const actorUid = requireUid(request.auth); await requireCoordinator(batchId, actorUid)
+  const actorUid = requireUid(request.auth); await requireCoordinator(batchId, request.auth)
   const ref = db.doc(`batches/${batchId}/expenses/${expenseId}`)
   if (!(await ref.get()).exists) throw new HttpsError('not-found', 'Expense was not found.')
   await ref.update({ receiptStoragePath, updatedAt: FieldValue.serverTimestamp() })
@@ -91,7 +91,7 @@ export const reviewExpense = onCall(async (request) => {
   const { batchId, expenseId, status } = request.data as Record<string, unknown>
   requireBatchId(batchId)
   if (typeof expenseId !== 'string' || !expenseId || !['approved', 'rejected'].includes(String(status))) throw new HttpsError('invalid-argument', 'An expense and valid review status are required.')
-  const actorUid = requireUid(request.auth); await requireCoordinator(batchId, actorUid)
+  const actorUid = requireUid(request.auth); await requireCoordinator(batchId, request.auth)
   await db.runTransaction(async (transaction) => {
     const ref = db.doc(`batches/${batchId}/expenses/${expenseId}`); const expense = await transaction.get(ref)
     if (!expense.exists) throw new HttpsError('not-found', 'Expense was not found.')
@@ -104,7 +104,7 @@ export const reviewExpense = onCall(async (request) => {
 
 export const rebuildFundSummary = onCall(async (request) => {
   const { batchId } = request.data as { batchId?: unknown }; requireBatchId(batchId)
-  const actorUid = requireUid(request.auth); await requireCoordinator(batchId, actorUid)
+  const actorUid = requireUid(request.auth); await requireCoordinator(batchId, request.auth)
   await db.runTransaction(async (transaction) => { await writeFundSummary(transaction, batchId); transaction.create(db.collection(`batches/${batchId}/auditEvents`).doc(), { actorUid, action: 'fundSummary.rebuilt', createdAt: FieldValue.serverTimestamp(), outcome: 'success' }) })
   return { rebuilt: true }
 })

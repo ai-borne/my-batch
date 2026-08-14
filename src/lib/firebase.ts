@@ -3,6 +3,7 @@ import { Auth, connectAuthEmulator, getAuth } from 'firebase/auth'
 import { Firestore, connectFirestoreEmulator, getFirestore } from 'firebase/firestore/lite'
 import { FirebaseStorage, connectStorageEmulator, getStorage } from 'firebase/storage'
 import { Functions, connectFunctionsEmulator, getFunctions } from 'firebase/functions'
+import { ReCaptchaEnterpriseProvider, initializeAppCheck } from 'firebase/app-check'
 
 const requiredKeys = ['VITE_FIREBASE_API_KEY', 'VITE_FIREBASE_AUTH_DOMAIN', 'VITE_FIREBASE_PROJECT_ID', 'VITE_FIREBASE_STORAGE_BUCKET', 'VITE_FIREBASE_APP_ID'] as const
 
@@ -20,8 +21,15 @@ function config() {
 }
 
 let emulatorsConnected = false
+let appCheckInitialized = false
 export function firebaseServices(): { app: FirebaseApp; auth: Auth; db: Firestore; storage: FirebaseStorage; functions: Functions } {
   const app = getApps().length ? getApp() : initializeApp(config())
+  if (!appCheckInitialized && import.meta.env.PROD && import.meta.env.VITE_USE_FIREBASE_EMULATORS !== 'true') {
+    const siteKey = import.meta.env.VITE_RECAPTCHA_ENTERPRISE_SITE_KEY
+    if (!siteKey) throw new Error('Firebase App Check is missing VITE_RECAPTCHA_ENTERPRISE_SITE_KEY.')
+    initializeAppCheck(app, { provider: new ReCaptchaEnterpriseProvider(siteKey), isTokenAutoRefreshEnabled: true })
+    appCheckInitialized = true
+  }
   const auth = getAuth(app)
   const db = getFirestore(app)
   const storage = getStorage(app)

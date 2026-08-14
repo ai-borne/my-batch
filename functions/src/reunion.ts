@@ -30,7 +30,7 @@ export const reopenRsvp = onCall(async (request) => {
   requireBatchId(batchId)
   if (typeof memberUid !== 'string' || !memberUid) throw new HttpsError('invalid-argument', 'memberUid is required.')
   const actorUid = requireUid(request.auth)
-  await requireCoordinator(batchId, actorUid)
+  await requireCoordinator(batchId, request.auth)
   await db.runTransaction(async (transaction) => {
     const rsvpRef = db.doc(`batches/${batchId}/rsvps/${memberUid}`)
     transaction.set(rsvpRef, { uid: memberUid, batchId, reopenedBy: actorUid, reopenedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() }, { merge: true })

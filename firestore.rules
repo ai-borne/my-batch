@@ -8,10 +8,15 @@ service cloud.firestore {
     function active(batchId) { return signedIn() && membership(batchId).data.status == 'active'; }
     function coordinator(batchId) { return active(batchId) && membership(batchId).data.role == 'coordinator'; }
     function self(uid) { return signedIn() && request.auth.uid == uid; }
+    function userShape(uid) { return request.resource.data.uid == uid && request.resource.data.keys().hasOnly(['uid', 'displayName', 'email', 'photoURL', 'createdAt', 'updatedAt']) && request.resource.data.displayName is string && request.resource.data.displayName.size() <= 100 && request.resource.data.email is string && request.resource.data.email.size() <= 320; }
     function profileShape(uid) { return request.resource.data.uid == uid && request.resource.data.keys().hasOnly(['uid', 'displayName', 'avatarPath', 'houseId', 'city', 'profession', 'about', 'favouriteSchoolMemory', 'teacherOrActivity', 'socialLinks', 'updatedAt']); }
+    function validHouse(value) { return value in ['shivaji', 'nehru', 'karve', 'rana-pratap', 'shastri', 'tilak']; }
+    function accessRequestShape() { return request.resource.data.keys().hasOnly(['uid', 'batchId', 'displayName', 'houseId', 'passingYear', 'status', 'createdAt', 'updatedAt', 'resubmittedAt', 'rejectionReason', 'rejectedBy', 'rejectedAt']) && request.resource.data.uid == request.auth.uid && request.resource.data.batchId is string && request.resource.data.displayName is string && request.resource.data.displayName.size() > 0 && request.resource.data.displayName.size() <= 100 && validHouse(request.resource.data.houseId) && request.resource.data.passingYear == 2002; }
 
     match /users/{uid} {
-      allow read, create, update: if self(uid);
+      allow read: if self(uid);
+      allow create: if self(uid) && userShape(uid);
+      allow update: if self(uid) && userShape(uid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'email', 'photoURL', 'updatedAt']);
       allow delete: if false;
     }
     match /batches/{batchId} {
@@ -19,9 +24,9 @@ service cloud.firestore {
       allow write: if false;
       match /memberships/{uid} { allow read: if active(batchId); allow write: if false; }
       match /accessRequests/{requestId} {
-        allow create: if signedIn() && request.resource.data.uid == request.auth.uid && request.resource.data.batchId == batchId && request.resource.data.status == 'pending';
+        allow create: if signedIn() && accessRequestShape() && request.resource.data.batchId == batchId && request.resource.data.status == 'pending';
         allow read: if signedIn() && (resource.data.uid == request.auth.uid || coordinator(batchId));
-        allow update: if signedIn() && resource.data.uid == request.auth.uid && resource.data.status == 'pending' && request.resource.data.uid == request.auth.uid && request.resource.data.status == 'pending';
+        allow update: if signedIn() && resource.data.uid == request.auth.uid && accessRequestShape() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'houseId', 'status', 'updatedAt', 'resubmittedAt']) && ((resource.data.status == 'pending' && request.resource.data.status == 'pending') || (resource.data.status == 'rejected' && request.resource.data.status == 'pending'));
         allow delete: if false;
       }
       match /profiles/{uid} {

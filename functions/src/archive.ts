@@ -100,7 +100,7 @@ export const deleteOwnPost = onCall(async (request) => {
 
 export const moderateArchiveContent = onCall(async (request) => {
   const { batchId, reportId, action, reason } = request.data as Record<string, unknown>
-  requireBatchId(batchId); const uid = requireUid(request.auth); await requireCoordinator(batchId, uid)
+  requireBatchId(batchId); const uid = requireUid(request.auth); await requireCoordinator(batchId, request.auth)
   if (typeof reportId !== 'string' || !['dismiss', 'warn', 'hide', 'remove'].includes(String(action))) throw new HttpsError('invalid-argument', 'Moderation details are invalid.')
   const reportRef = db.doc(`batches/${batchId}/reports/${reportId}`); const report = await reportRef.get()
   if (!report.exists) throw new HttpsError('not-found', 'Report was not found.')

@@ -12,6 +12,7 @@ beforeEach(async () => { await environment.clearFirestore(); await environment.c
   await admin.doc('batches/batch-a/memberships/member').set({ status: 'active', role: 'batchmate' })
   await admin.doc('batches/batch-a/memberships/coordinator').set({ status: 'active', role: 'coordinator' })
   await admin.doc('batches/batch-a/memberships/pending').set({ status: 'pending', role: 'batchmate' })
+  await admin.doc('batches/batch-a/memberships/suspended').set({ status: 'suspended', role: 'batchmate' })
   await admin.doc('batches/batch-b/memberships/other-batch').set({ status: 'active', role: 'batchmate' })
   await admin.doc('batches/batch-a/profiles/member').set({ uid: 'member', displayName: 'Member' })
   await admin.doc('batches/batch-a/profiles/coordinator').set({ uid: 'coordinator', displayName: 'Coordinator' })
@@ -28,6 +29,7 @@ beforeEach(async () => { await environment.clearFirestore(); await environment.c
 afterAll(async () => { if (environment) await environment.cleanup() })
 describe('private batch boundaries', () => {
   it('denies unauthenticated and pending reads', async () => { const anonymous = db(); const pending = db('pending'); await assertFails(anonymous.doc('batches/batch-a/profiles/member').get()); await assertFails(pending.doc('batches/batch-a/profiles/member').get()) })
+  it('revokes private access immediately for suspended members', async () => { await assertFails(db('suspended').doc('batches/batch-a/profiles/member').get()) })
   it('allows active members only within their batch', async () => { const member = db('member'); const otherBatch = db('other-batch'); await assertSucceeds(member.doc('batches/batch-a/profiles/member').get()); await assertFails(otherBatch.doc('batches/batch-a/profiles/member').get()) })
   it('keeps payment claims Coordinator-only', async () => { const member = db('member'); const coordinator = db('coordinator'); await assertFails(member.doc('batches/batch-a/paymentClaims/claim').get()); await assertSucceeds(coordinator.doc('batches/batch-a/paymentClaims/claim').get()) })
   it('exposes only aggregate finances and approved expenses to batchmates', async () => {
@@ -43,6 +45,24 @@ describe('private batch boundaries', () => {
     await assertFails(coordinator.doc('batches/batch-a/auditEvents/new').set({ action: 'finance.verified' }))
   })
   it('does not permit a client to grant a Coordinator role', async () => { const member = db('member'); await assertFails(member.doc('batches/batch-a/memberships/member').set({ status: 'active', role: 'coordinator' })) })
+  it('does not give a Super Admin claim direct batch access or role-write access', async () => {
+    const superAdmin = environment.authenticatedContext('super-admin', { superAdmin: true }).firestore()
+    await assertFails(superAdmin.doc('batches/batch-a/profiles/member').get())
+    await assertFails(superAdmin.doc('batches/batch-a/memberships/member').update({ role: 'coordinator' }))
+  })
+  it('allows only the requester to create a constrained access request', async () => {
+    const requester = db('requester')
+    const request = { uid: 'requester', batchId: 'batch-a', displayName: 'Requesting Member', houseId: 'tilak', passingYear: 2002, status: 'pending', createdAt: new Date(), updatedAt: new Date() }
+    await assertSucceeds(requester.doc('batches/batch-a/accessRequests/requester').set(request))
+    await assertFails(requester.doc('batches/batch-a/accessRequests/forged').set({ ...request, uid: 'member' }))
+    await assertFails(requester.doc('batches/batch-a/accessRequests/invalid').set({ ...request, houseId: 'unknown' }))
+  })
+  it('allows rejected requests to be corrected and resubmitted without changing protected review fields', async () => {
+    await environment.withSecurityRulesDisabled(async (context) => context.firestore().doc('batches/batch-a/accessRequests/requester').set({ uid: 'requester', batchId: 'batch-a', displayName: 'Wrong Name', houseId: 'tilak', passingYear: 2002, status: 'rejected', rejectionReason: 'Please use your full name.', rejectedBy: 'coordinator', rejectedAt: new Date(), createdAt: new Date(), updatedAt: new Date() }))
+    const requester = db('requester')
+    await assertSucceeds(requester.doc('batches/batch-a/accessRequests/requester').update({ displayName: 'Correct Name', status: 'pending', resubmittedAt: new Date(), updatedAt: new Date() }))
+    await assertFails(requester.doc('batches/batch-a/accessRequests/requester').update({ rejectionReason: 'forged' }))
+  })
   it('lets a member edit only their own profile without changing their house', async () => {
     const member = db('member')
     await assertSucceeds(member.doc('batches/batch-a/profiles/member').update({ city: 'Pune' }))
