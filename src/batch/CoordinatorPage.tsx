@@ -11,7 +11,7 @@ type Claim = { id: string; memberUid: string; amountPaise: number; utr: string; 
 type Expense = { id: string; category: string; amountPaise: number; status: string; vendor: string }
 type Member = { uid: string; role?: string; status: string; houseId?: string; displayName?: string }
 type AccessRequest = { id: string; displayName: string; houseId?: string }
-const call = (name: string, data: unknown) => httpsCallable(firebaseServices().functions, name)(data)
+const call = (name: string, data: Record<string, unknown>) => httpsCallable(firebaseServices().functions, name)({ requestId: crypto.randomUUID(), ...data })
 
 export function CoordinatorPage() {
   const { reauthenticate } = useAuth()
@@ -60,7 +60,7 @@ export function CoordinatorPage() {
   }
   async function saveExpense(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); const data = new FormData(event.currentTarget); const receipt = data.get('receipt') as File
-    const result = await httpsCallable<Record<string, unknown>, { expenseId: string }>(firebaseServices().functions, 'saveExpense')({ batchId: PILOT_BATCH_ID, category: data.get('category'), amountPaise: Math.round(Number(data.get('amount')) * 100), vendor: data.get('vendor'), expenseDate: data.get('date'), notes: data.get('notes') })
+    const result = await httpsCallable<Record<string, unknown>, { expenseId: string }>(firebaseServices().functions, 'saveExpense')({ batchId: PILOT_BATCH_ID, requestId: crypto.randomUUID(), category: data.get('category'), amountPaise: Math.round(Number(data.get('amount')) * 100), vendor: data.get('vendor'), expenseDate: data.get('date'), notes: data.get('notes') })
     if (receipt.size) { const path = `batches/${PILOT_BATCH_ID}/expenses/${result.data.expenseId}/receipts/${Date.now()}-${receipt.name}`; await uploadBytes(ref(firebaseServices().storage, path), receipt); await call('attachExpenseReceipt', { batchId: PILOT_BATCH_ID, expenseId: result.data.expenseId, receiptStoragePath: path }) }
     await refresh(); event.currentTarget.reset(); setNotice('Expense saved as draft.')
   }

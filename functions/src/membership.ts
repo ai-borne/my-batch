@@ -1,22 +1,25 @@
 import { FieldValue } from "firebase-admin/firestore"
-import { HttpsError, onCall } from "firebase-functions/v2/https"
-import { db, houseIds, limitSensitiveOperation, requireBatchId, requireCoordinator, requireRecentAuthentication, requireText, requireUid } from "./shared.js"
+import { HttpsError } from "firebase-functions/v2/https"
+import { db, houseIds, requireBatchId, requireCoordinator, requireIdempotencyKey, requireRecentAuthentication, requireText, requireUid } from "./shared.js"
+import { limitCallable, secureCall } from './security.js'
 
-const enforceAppCheck = process.env.FUNCTIONS_EMULATOR !== 'true'
-
-export const approveMembership = onCall({ enforceAppCheck }, async (request) => {
+export const approveMembership = secureCall(async (request) => {
   const { batchId, requestId } = request.data as { batchId?: string; requestId?: string }
   if (!batchId || !requestId) throw new HttpsError('invalid-argument', 'batchId and requestId are required.')
 
   const coordinatorUid = requireUid(request.auth)
   requireRecentAuthentication(request.auth)
   await requireCoordinator(batchId, request.auth)
-  await limitSensitiveOperation(coordinatorUid, 'approveMembership')
+  await limitCallable(batchId, coordinatorUid, 'approveMembership')
   const requestRef = db.doc(`batches/${batchId}/accessRequests/${requestId}`)
 
   await db.runTransaction(async (transaction) => {
     const accessRequest = await transaction.get(requestRef)
-    if (!accessRequest.exists || accessRequest.data()?.status !== 'pending') {
+    if (!accessRequest.exists) {
+      throw new HttpsError('not-found', 'The access request was not found.')
+    }
+    if (accessRequest.data()?.status === 'approved') return
+    if (accessRequest.data()?.status !== 'pending') {
       throw new HttpsError('failed-precondition', 'The access request is not pending.')
     }
     const { uid, displayName, houseId, passingYear } = accessRequest.data() as Record<string, unknown>
@@ -40,25 +43,27 @@ export const approveMembership = onCall({ enforceAppCheck }, async (request) => 
   return { approved: true }
 })
 
-export const rejectMembership = onCall({ enforceAppCheck }, async (request) => {
+export const rejectMembership = secureCall(async (request) => {
   const { batchId, requestId, reason } = request.data as { batchId?: unknown; requestId?: unknown; reason?: unknown }
   requireBatchId(batchId)
   if (typeof requestId !== 'string') throw new HttpsError('invalid-argument', 'requestId is required.')
   const actorUid = requireUid(request.auth)
   requireRecentAuthentication(request.auth)
   await requireCoordinator(batchId, request.auth)
-  await limitSensitiveOperation(actorUid, 'rejectMembership')
+  await limitCallable(batchId, actorUid, 'rejectMembership')
   const requestRef = db.doc(`batches/${batchId}/accessRequests/${requestId}`)
   await db.runTransaction(async (transaction) => {
     const accessRequest = await transaction.get(requestRef)
-    if (!accessRequest.exists || accessRequest.data()?.status !== 'pending') throw new HttpsError('failed-precondition', 'The access request is not pending.')
+    if (!accessRequest.exists) throw new HttpsError('not-found', 'The access request was not found.')
+    if (accessRequest.data()?.status === 'rejected') return
+    if (accessRequest.data()?.status !== 'pending') throw new HttpsError('failed-precondition', 'The access request is not pending.')
     transaction.update(requestRef, { status: 'rejected', rejectionReason: requireText(reason, 'reason', 300), rejectedBy: actorUid, rejectedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() })
     transaction.create(db.collection(`batches/${batchId}/auditEvents`).doc(), { actorUid, action: 'membership.rejected', targetUid: accessRequest.data()?.uid, batchId, outcome: 'success', createdAt: FieldValue.serverTimestamp() })
   })
   return { rejected: true }
 })
 
-export const manageMembership = onCall({ enforceAppCheck }, async (request) => {
+export const manageMembership = secureCall(async (request) => {
   const { batchId, memberUid, action, houseId } = request.data as { batchId?: unknown; memberUid?: unknown; action?: unknown; houseId?: unknown }
   requireBatchId(batchId)
   if (typeof memberUid !== 'string' || !['suspend', 'remove', 'reinstate', 'assignHouse'].includes(String(action))) {
@@ -68,13 +73,20 @@ export const manageMembership = onCall({ enforceAppCheck }, async (request) => {
   const actorUid = requireUid(request.auth)
   requireRecentAuthentication(request.auth)
   await requireCoordinator(batchId, request.auth)
-  await limitSensitiveOperation(actorUid, 'manageMembership')
+  await limitCallable(batchId, actorUid, 'manageMembership')
   const membershipRef = db.doc(`batches/${batchId}/memberships/${memberUid}`)
   const profileRef = db.doc(`batches/${batchId}/profiles/${memberUid}`)
   await db.runTransaction(async (transaction) => {
     const membership = await transaction.get(membershipRef)
     if (!membership.exists) throw new HttpsError('not-found', 'Membership was not found.')
+    const currentStatus = String(membership.data()?.status)
     const updates = action === 'assignHouse' ? { houseId } : { status: action === 'reinstate' ? 'active' : action === 'suspend' ? 'suspended' : 'removed' }
+    const nextStatus = 'status' in updates ? updates.status : undefined
+    if (action === 'assignHouse' && currentStatus !== 'active') throw new HttpsError('failed-precondition', 'Only active members can be assigned to a house.')
+    if (nextStatus && currentStatus === nextStatus) return
+    if ((action === 'suspend' && currentStatus !== 'active') || (action === 'remove' && !['active', 'suspended'].includes(currentStatus)) || (action === 'reinstate' && currentStatus !== 'suspended')) {
+      throw new HttpsError('failed-precondition', 'This membership transition is not allowed.')
+    }
     transaction.update(membershipRef, { ...updates, updatedAt: FieldValue.serverTimestamp() })
     if (action === 'assignHouse') transaction.set(profileRef, { uid: memberUid, houseId, updatedAt: FieldValue.serverTimestamp() }, { merge: true })
     transaction.create(db.collection(`batches/${batchId}/auditEvents`).doc(), {
@@ -84,13 +96,22 @@ export const manageMembership = onCall({ enforceAppCheck }, async (request) => {
   return { updated: true }
 })
 
-export const requestProfileDataChange = onCall({ enforceAppCheck }, async (request) => {
-  const { batchId, action } = request.data as { batchId?: unknown; action?: unknown }
+export const requestProfileDataChange = secureCall(async (request) => {
+  const { batchId, action, requestId } = request.data as { batchId?: unknown; action?: unknown; requestId?: unknown }
   requireBatchId(batchId)
   if (action !== 'correction' && action !== 'deletion') throw new HttpsError('invalid-argument', 'A supported request action is required.')
   const uid = requireUid(request.auth)
   const membership = await db.doc(`batches/${batchId}/memberships/${uid}`).get()
   if (membership.data()?.status !== 'active') throw new HttpsError('permission-denied', 'Active membership is required.')
-  await db.collection(`batches/${batchId}/profileDataRequests`).add({ uid, action, status: 'open', createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() })
+  await limitCallable(batchId, uid, 'requestProfileDataChange')
+  const ref = db.collection(`batches/${batchId}/profileDataRequests`).doc(requireIdempotencyKey(requestId))
+  await db.runTransaction(async (transaction) => {
+    const existing = await transaction.get(ref)
+    if (existing.exists) {
+      if (existing.data()?.uid !== uid) throw new HttpsError('already-exists', 'A request with this key already exists.')
+      return
+    }
+    transaction.create(ref, { uid, action, status: 'open', createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() })
+  })
   return { requested: true }
 })

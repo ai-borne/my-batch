@@ -1,9 +1,10 @@
 import { FieldValue } from 'firebase-admin/firestore'
 import { getStorage } from 'firebase-admin/storage'
-import { HttpsError, onCall } from 'firebase-functions/v2/https'
+import { HttpsError } from 'firebase-functions/v2/https'
 import sharp from 'sharp'
-import { db, requireActiveMember, requireBatchId, requireCoordinator, requireUid } from './shared.js'
+import { db, requireActiveMember, requireBatchId, requireCoordinator, requireIdempotencyKey, requireUid } from './shared.js'
 import { notify } from './notifications.js'
+import { limitCallable, secureCall } from './security.js'
 
 const mediaTypes = new Set(['image/jpeg', 'image/png', 'image/heic', 'image/webp', 'video/mp4', 'video/quicktime'])
 const reportCategories = new Set(['harassment', 'sexualContent', 'privacy', 'financialInformation', 'fraud', 'spam', 'rights', 'other'])
@@ -59,33 +60,50 @@ function metadata(data: Record<string, unknown>) {
   return { ...(peopleTags ? { peopleTags } : {}), ...(memoryYear ? { year: memoryYear } : {}), ...(memoryCategory ? { category: memoryCategory } : {}) }
 }
 
-export const createPost = onCall(async (request) => {
-  const { batchId, caption, albumId, consentConfirmed } = request.data as Record<string, unknown>
+export const createPost = secureCall(async (request) => {
+  const { batchId, caption, albumId, consentConfirmed, requestId } = request.data as Record<string, unknown>
   requireBatchId(batchId); const uid = requireUid(request.auth); await requireActiveMember(batchId, uid)
+  await limitCallable(batchId, uid, 'createPost')
   if (consentConfirmed !== true) throw new HttpsError('failed-precondition', 'Content consent must be confirmed.')
   const postCaption = text(caption, 'caption', 2_000, false)
   const selectedAlbumId = albumId === undefined || albumId === null || albumId === '' ? undefined : albumId
   if (selectedAlbumId !== undefined) {
     if (typeof selectedAlbumId !== 'string' || !(await db.doc(`batches/${batchId}/albums/${selectedAlbumId}`).get()).exists) throw new HttpsError('not-found', 'Album was not found.')
   }
-  const ref = db.collection(`batches/${batchId}/posts`).doc()
-  await ref.create({ batchId, authorUid: uid, ...(postCaption ? { caption: postCaption } : {}), ...(typeof selectedAlbumId === 'string' ? { albumId: selectedAlbumId } : {}), ...metadata(request.data as Record<string, unknown>), status: 'visible', media: [], createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() })
+  const ref = db.collection(`batches/${batchId}/posts`).doc(requireIdempotencyKey(requestId))
+  await db.runTransaction(async (transaction) => {
+    const existing = await transaction.get(ref)
+    if (existing.exists) {
+      if (existing.data()?.authorUid !== uid) throw new HttpsError('already-exists', 'A request with this key already exists.')
+      return
+    }
+    transaction.create(ref, { batchId, authorUid: uid, ...(postCaption ? { caption: postCaption } : {}), ...(typeof selectedAlbumId === 'string' ? { albumId: selectedAlbumId } : {}), ...metadata(request.data as Record<string, unknown>), status: 'visible', media: [], createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() })
+  })
   return { postId: ref.id }
 })
 
-export const createAlbum = onCall(async (request) => {
-  const { batchId, title, description, consentConfirmed } = request.data as Record<string, unknown>
+export const createAlbum = secureCall(async (request) => {
+  const { batchId, title, description, consentConfirmed, requestId } = request.data as Record<string, unknown>
   requireBatchId(batchId); const uid = requireUid(request.auth); await requireActiveMember(batchId, uid)
+  await limitCallable(batchId, uid, 'createAlbum')
   if (consentConfirmed !== true) throw new HttpsError('failed-precondition', 'Content consent must be confirmed.')
   const albumDescription = text(description, 'description', 1_000, false)
-  const ref = db.collection(`batches/${batchId}/albums`).doc()
-  await ref.create({ batchId, authorUid: uid, title: text(title, 'title', 120), ...(albumDescription ? { description: albumDescription } : {}), status: 'visible', media: [], createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() })
+  const ref = db.collection(`batches/${batchId}/albums`).doc(requireIdempotencyKey(requestId))
+  await db.runTransaction(async (transaction) => {
+    const existing = await transaction.get(ref)
+    if (existing.exists) {
+      if (existing.data()?.authorUid !== uid) throw new HttpsError('already-exists', 'A request with this key already exists.')
+      return
+    }
+    transaction.create(ref, { batchId, authorUid: uid, title: text(title, 'title', 120), ...(albumDescription ? { description: albumDescription } : {}), status: 'visible', media: [], createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() })
+  })
   return { albumId: ref.id }
 })
 
-export const addArchiveMedia = onCall(async (request) => {
+export const addArchiveMedia = secureCall(async (request) => {
   const { batchId, contentType, contentId, storagePath, mimeType, size, durationSeconds } = request.data as Record<string, unknown>
   requireBatchId(batchId); const uid = requireUid(request.auth); await requireActiveMember(batchId, uid)
+  await limitCallable(batchId, uid, 'addArchiveMedia')
   if (contentType !== 'post' && contentType !== 'album') throw new HttpsError('invalid-argument', 'contentType is invalid.')
   if (typeof contentId !== 'string' || !mediaTypes.has(String(mimeType)) || !Number.isInteger(size) || Number(size) < 1) throw new HttpsError('invalid-argument', 'Media metadata is invalid.')
   const image = String(mimeType).startsWith('image/'); const limit = image ? 20 * 1024 * 1024 : 250 * 1024 * 1024
@@ -93,6 +111,7 @@ export const addArchiveMedia = onCall(async (request) => {
   const collection = contentType === 'post' ? 'posts' : 'albums'; const ref = db.doc(`batches/${batchId}/${collection}/${contentId}`); const content = await ref.get()
   if (!content.exists || content.data()?.authorUid !== uid || content.data()?.status !== 'visible') throw new HttpsError('permission-denied', 'You cannot add media to this content.')
   const path = mediaPath(batchId, collection, contentId, storagePath)
+  if ((content.data()?.media ?? []).some((media: { path?: string }) => media.path === path)) return { added: true, duplicate: true }
   const [objectMetadata] = await getStorage().bucket().file(path).getMetadata().catch(() => { throw new HttpsError('failed-precondition', 'Upload was not found.') })
   if (objectMetadata.contentType !== mimeType || Number(objectMetadata.size) !== Number(size)) throw new HttpsError('failed-precondition', 'Uploaded media does not match the submitted metadata.')
   await verifyMediaBytes(path, String(mimeType))
@@ -104,9 +123,10 @@ export const addArchiveMedia = onCall(async (request) => {
   return { added: true }
 })
 
-export const updateOwnPost = onCall(async (request) => {
+export const updateOwnPost = secureCall(async (request) => {
   const { batchId, postId, caption, albumId } = request.data as Record<string, unknown>
   requireBatchId(batchId); const uid = requireUid(request.auth); await requireActiveMember(batchId, uid)
+  await limitCallable(batchId, uid, 'updateOwnPost')
   if (typeof postId !== 'string') throw new HttpsError('invalid-argument', 'postId is required.')
   const ref = db.doc(`batches/${batchId}/posts/${postId}`); const post = await ref.get()
   if (!post.exists || post.data()?.authorUid !== uid || post.data()?.status !== 'visible') throw new HttpsError('permission-denied', 'You can edit only your visible posts.')
@@ -118,9 +138,10 @@ export const updateOwnPost = onCall(async (request) => {
   return { updated: true }
 })
 
-export const manageAlbum = onCall(async (request) => {
+export const manageAlbum = secureCall(async (request) => {
   const { batchId, albumId, action, title, description } = request.data as Record<string, unknown>
   requireBatchId(batchId); const uid = requireUid(request.auth); await requireActiveMember(batchId, uid)
+  await limitCallable(batchId, uid, 'manageAlbum')
   if (typeof albumId !== 'string' || !['update', 'remove'].includes(String(action))) throw new HttpsError('invalid-argument', 'Album details are invalid.')
   const ref = db.doc(`batches/${batchId}/albums/${albumId}`); const album = await ref.get(); const membership = await db.doc(`batches/${batchId}/memberships/${uid}`).get()
   if (!album.exists || (album.data()?.authorUid !== uid && membership.data()?.role !== 'coordinator')) throw new HttpsError('permission-denied', 'Only the album owner or a Coordinator can manage this album.')
@@ -130,20 +151,29 @@ export const manageAlbum = onCall(async (request) => {
   return { managed: true }
 })
 
-export const saveArchiveComment = onCall(async (request) => {
-  const { batchId, postId, body } = request.data as Record<string, unknown>
+export const saveArchiveComment = secureCall(async (request) => {
+  const { batchId, postId, body, requestId } = request.data as Record<string, unknown>
   requireBatchId(batchId); const uid = requireUid(request.auth); await requireActiveMember(batchId, uid)
+  await limitCallable(batchId, uid, 'saveArchiveComment')
   if (typeof postId !== 'string') throw new HttpsError('invalid-argument', 'postId is required.')
   const post = await db.doc(`batches/${batchId}/posts/${postId}`).get()
   if (!post.exists || post.data()?.status !== 'visible') throw new HttpsError('not-found', 'Post was not found.')
-  const ref = db.collection(`batches/${batchId}/posts/${postId}/comments`).doc()
-  await ref.create({ authorUid: uid, body: text(body, 'body', 1_000), status: 'visible', createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() })
+  const ref = db.collection(`batches/${batchId}/posts/${postId}/comments`).doc(requireIdempotencyKey(requestId))
+  await db.runTransaction(async (transaction) => {
+    const existing = await transaction.get(ref)
+    if (existing.exists) {
+      if (existing.data()?.authorUid !== uid) throw new HttpsError('already-exists', 'A request with this key already exists.')
+      return
+    }
+    transaction.create(ref, { authorUid: uid, body: text(body, 'body', 1_000), status: 'visible', createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() })
+  })
   return { commentId: ref.id }
 })
 
-export const setArchiveLike = onCall(async (request) => {
+export const setArchiveLike = secureCall(async (request) => {
   const { batchId, postId, liked } = request.data as Record<string, unknown>
   requireBatchId(batchId); const uid = requireUid(request.auth); await requireActiveMember(batchId, uid)
+  await limitCallable(batchId, uid, 'setArchiveLike')
   if (typeof postId !== 'string' || typeof liked !== 'boolean') throw new HttpsError('invalid-argument', 'Like details are invalid.')
   const post = await db.doc(`batches/${batchId}/posts/${postId}`).get()
   if (!post.exists || post.data()?.status !== 'visible') throw new HttpsError('not-found', 'Post was not found.')
@@ -152,18 +182,27 @@ export const setArchiveLike = onCall(async (request) => {
   return { liked }
 })
 
-export const reportArchiveContent = onCall(async (request) => {
-  const { batchId, targetType, targetId, category, explanation } = request.data as Record<string, unknown>
+export const reportArchiveContent = secureCall(async (request) => {
+  const { batchId, targetType, targetId, category, explanation, requestId } = request.data as Record<string, unknown>
   requireBatchId(batchId); const uid = requireUid(request.auth); await requireActiveMember(batchId, uid)
+  await limitCallable(batchId, uid, 'reportArchiveContent')
   if (!['post', 'comment', 'profile', 'user'].includes(String(targetType)) || typeof targetId !== 'string' || !reportCategories.has(String(category))) throw new HttpsError('invalid-argument', 'Report details are invalid.')
-  const ref = db.collection(`batches/${batchId}/reports`).doc()
-  await ref.create({ reporterUid: uid, targetType, targetId, category, ...(text(explanation, 'explanation', 1_000, false) ? { explanation: text(explanation, 'explanation', 1_000, false) } : {}), status: 'open', createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() })
+  const ref = db.collection(`batches/${batchId}/reports`).doc(requireIdempotencyKey(requestId))
+  await db.runTransaction(async (transaction) => {
+    const existing = await transaction.get(ref)
+    if (existing.exists) {
+      if (existing.data()?.reporterUid !== uid) throw new HttpsError('already-exists', 'A request with this key already exists.')
+      return
+    }
+    transaction.create(ref, { reporterUid: uid, targetType, targetId, category, ...(text(explanation, 'explanation', 1_000, false) ? { explanation: text(explanation, 'explanation', 1_000, false) } : {}), status: 'open', createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() })
+  })
   return { reportId: ref.id }
 })
 
-export const deleteOwnPost = onCall(async (request) => {
+export const deleteOwnPost = secureCall(async (request) => {
   const { batchId, postId } = request.data as Record<string, unknown>
   requireBatchId(batchId); const uid = requireUid(request.auth); await requireActiveMember(batchId, uid)
+  await limitCallable(batchId, uid, 'deleteOwnPost')
   if (typeof postId !== 'string') throw new HttpsError('invalid-argument', 'postId is required.')
   const ref = db.doc(`batches/${batchId}/posts/${postId}`); const post = await ref.get()
   if (!post.exists || post.data()?.authorUid !== uid) throw new HttpsError('permission-denied', 'You can delete only your own post.')
@@ -173,9 +212,10 @@ export const deleteOwnPost = onCall(async (request) => {
   return { deleted: true }
 })
 
-export const deleteOwnComment = onCall(async (request) => {
+export const deleteOwnComment = secureCall(async (request) => {
   const { batchId, postId, commentId } = request.data as Record<string, unknown>
   requireBatchId(batchId); const uid = requireUid(request.auth); await requireActiveMember(batchId, uid)
+  await limitCallable(batchId, uid, 'deleteOwnComment')
   if (typeof postId !== 'string' || typeof commentId !== 'string') throw new HttpsError('invalid-argument', 'Comment details are invalid.')
   const ref = db.doc(`batches/${batchId}/posts/${postId}/comments/${commentId}`); const comment = await ref.get()
   if (!comment.exists || comment.data()?.authorUid !== uid) throw new HttpsError('permission-denied', 'You can delete only your own comment.')
@@ -184,9 +224,10 @@ export const deleteOwnComment = onCall(async (request) => {
   return { deleted: true }
 })
 
-export const cleanupArchiveOrphans = onCall(async (request) => {
+export const cleanupArchiveOrphans = secureCall(async (request) => {
   const { batchId } = request.data as Record<string, unknown>
   requireBatchId(batchId); const uid = requireUid(request.auth); await requireCoordinator(batchId, request.auth)
+  await limitCallable(batchId, uid, 'cleanupArchiveOrphans')
   const [posts, albums, files] = await Promise.all([db.collection(`batches/${batchId}/posts`).get(), db.collection(`batches/${batchId}/albums`).get(), getStorage().bucket().getFiles({ prefix: `batches/${batchId}/` })])
   const referenced = new Set([...posts.docs, ...albums.docs].flatMap((doc) => (doc.data().status === 'visible' ? (doc.data().media ?? []).map((media: { path?: string }) => media.path) : [])).filter((path): path is string => typeof path === 'string'))
   const now = Date.now(); let deleted = 0
@@ -199,12 +240,17 @@ export const cleanupArchiveOrphans = onCall(async (request) => {
   return { deleted }
 })
 
-export const moderateArchiveContent = onCall(async (request) => {
+export const moderateArchiveContent = secureCall(async (request) => {
   const { batchId, reportId, action, reason } = request.data as Record<string, unknown>
   requireBatchId(batchId); const uid = requireUid(request.auth); await requireCoordinator(batchId, request.auth)
+  await limitCallable(batchId, uid, 'moderateArchiveContent')
   if (typeof reportId !== 'string' || !['dismiss', 'warn', 'hide', 'remove'].includes(String(action))) throw new HttpsError('invalid-argument', 'Moderation details are invalid.')
   const reportRef = db.doc(`batches/${batchId}/reports/${reportId}`); const report = await reportRef.get()
   if (!report.exists) throw new HttpsError('not-found', 'Report was not found.')
+  if (report.data()?.status !== 'open') {
+    if (report.data()?.resolution === action) return { moderated: true, duplicate: true }
+    throw new HttpsError('failed-precondition', 'This report has already been resolved.')
+  }
   const note = text(reason, 'reason', 1_000, false)
   const targetType = String(report.data()?.targetType); const targetId = String(report.data()?.targetId)
   const targetRef = targetType === 'post' ? db.doc(`batches/${batchId}/posts/${targetId}`) : targetType === 'comment' ? db.doc(`batches/${batchId}/posts/${targetId.split('/')[0]}/comments/${targetId.split('/')[1]}`) : undefined

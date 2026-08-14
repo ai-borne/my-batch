@@ -1,5 +1,5 @@
 import { getApps, initializeApp } from 'firebase-admin/app'
-import { FieldValue, Timestamp, getFirestore } from 'firebase-admin/firestore'
+import { Timestamp, getFirestore } from 'firebase-admin/firestore'
 import { HttpsError } from 'firebase-functions/v2/https'
 
 if (!getApps().length) initializeApp()
@@ -27,7 +27,18 @@ export async function requireActiveMember(batchId: string, uid: string) {
 }
 
 export function requireBatchId(batchId: unknown): asserts batchId is string {
-  if (typeof batchId !== 'string' || !batchId) throw new HttpsError('invalid-argument', 'batchId is required.')
+  requireDocumentId(batchId, 'batchId')
+}
+
+export function requireDocumentId(value: unknown, field: string): asserts value is string {
+  if (typeof value !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(value)) {
+    throw new HttpsError('invalid-argument', `${field} is invalid.`)
+  }
+}
+
+export function requireIdempotencyKey(value: unknown) {
+  requireDocumentId(value, 'requestId')
+  return value
 }
 
 export function requirePaise(value: unknown, field: string) {
@@ -49,18 +60,4 @@ export function requireRecentAuthentication(auth: { token?: Record<string, unkno
   if (typeof authTime !== 'number' || Timestamp.now().seconds - authTime > 300) {
     throw new HttpsError('failed-precondition', 'Please sign in again before performing this sensitive action.')
   }
-}
-
-export async function limitSensitiveOperation(uid: string, operation: string) {
-  const rateLimitRef = db.doc(`rateLimits/${uid}-${operation}`)
-  await db.runTransaction(async (transaction) => {
-    const now = Timestamp.now()
-    const current = await transaction.get(rateLimitRef)
-    const data = current.data()
-    const windowStartedAt = data?.windowStartedAt as Timestamp | undefined
-    const inWindow = windowStartedAt && now.seconds - windowStartedAt.seconds < 60
-    const count = inWindow ? Number(data?.count ?? 0) : 0
-    if (count >= 10) throw new HttpsError('resource-exhausted', 'Too many sensitive requests. Please wait a minute and try again.')
-    transaction.set(rateLimitRef, { uid, operation, count: count + 1, windowStartedAt: inWindow ? windowStartedAt : now, updatedAt: FieldValue.serverTimestamp() })
-  })
 }

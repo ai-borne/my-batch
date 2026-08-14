@@ -13,6 +13,7 @@ const functionsEmulatorPort = Number(process.env.AJINKYANS_FUNCTIONS_EMULATOR_PO
 const adminApp = getApps().length ? getApps()[0] : initializeAdminApp({ projectId })
 const adminDb = getFirestore(adminApp)
 const clients: ReturnType<typeof initializeApp>[] = []
+let requestNumber = 0
 
 async function signIn(email: string) {
   const app = initializeApp({ apiKey: 'test', authDomain: 'test.invalid', projectId, appId: `test-${email}` }, `client-${email}`)
@@ -22,7 +23,7 @@ async function signIn(email: string) {
   await createUserWithEmailAndPassword(auth, email, 'password-123')
   const functions = getFunctions(app)
   connectFunctionsEmulator(functions, '127.0.0.1', functionsEmulatorPort)
-  return { auth, call: <T>(name: string, data: unknown) => httpsCallable<unknown, T>(functions, name)(data) }
+  return { auth, call: <T>(name: string, data: unknown) => httpsCallable<unknown, T>(functions, name)({ requestId: `request-${++requestNumber}`, ...(data as Record<string, unknown>) }) }
 }
 
 beforeAll(() => { process.env.FIRESTORE_EMULATOR_HOST = firestoreEmulatorHost })
@@ -152,5 +153,41 @@ describe('Phase 6 notification callables', () => {
     await member.call('markNotificationsRead', { batchId, notificationIds: ['own'] })
     expect((await adminDb.doc(`batches/${batchId}/notifications/${memberUid}/items/own`).get()).data()?.readAt).toBeDefined()
     await expect(other.call('markNotificationsRead', { batchId, notificationIds: ['own'] })).rejects.toMatchObject({ code: 'functions/internal' })
+  })
+})
+
+describe('GS-1 callable integrity and abuse controls', () => {
+  it('denies pending and suspended callers and safely rejects the request beyond the RSVP burst limit', async () => {
+    const pending = await signIn('gs1-pending@example.test')
+    const suspended = await signIn('gs1-suspended@example.test')
+    const active = await signIn('gs1-active@example.test')
+    const pendingUid = pending.auth.currentUser!.uid; const suspendedUid = suspended.auth.currentUser!.uid; const activeUid = active.auth.currentUser!.uid
+    await adminDb.doc(`batches/${batchId}/memberships/${pendingUid}`).set({ uid: pendingUid, status: 'pending', role: 'batchmate' })
+    await adminDb.doc(`batches/${batchId}/memberships/${suspendedUid}`).set({ uid: suspendedUid, status: 'suspended', role: 'batchmate' })
+    await adminDb.doc(`batches/${batchId}/memberships/${activeUid}`).set({ uid: activeUid, status: 'active', role: 'batchmate' })
+    const rsvp = { batchId, attendance: 'yes', accompanyingAdults: 0, accompanyingChildren: 0, foodPreference: 'vegetarian', hotelRequired: false }
+
+    await expect(pending.call('submitRsvp', rsvp)).rejects.toMatchObject({ code: 'functions/permission-denied' })
+    await expect(suspended.call('submitRsvp', rsvp)).rejects.toMatchObject({ code: 'functions/permission-denied' })
+    for (let attempt = 0; attempt < 10; attempt += 1) await active.call('submitRsvp', rsvp)
+    await expect(active.call('submitRsvp', rsvp)).rejects.toMatchObject({ code: 'functions/resource-exhausted' })
+  })
+
+  it('uses one payment claim and audit event for a replayed request key and blocks invalid review transitions', async () => {
+    const coordinator = await signIn('gs1-finance-coordinator@example.test')
+    const member = await signIn('gs1-finance-member@example.test')
+    const coordinatorUid = coordinator.auth.currentUser!.uid; const memberUid = member.auth.currentUser!.uid
+    await adminDb.doc(`batches/${batchId}/memberships/${coordinatorUid}`).set({ uid: coordinatorUid, status: 'active', role: 'coordinator' })
+    await adminDb.doc(`batches/${batchId}/memberships/${memberUid}`).set({ uid: memberUid, status: 'active', role: 'batchmate' })
+    await adminDb.doc(`batches/${batchId}/paymentConfig/current`).set({ contributionHeads: ['Reunion contribution'] })
+    const request = { batchId, requestId: 'replayed-payment', amountPaise: 100, utr: 'UTR-GS1', paymentDate: '2027-01-06', contributionHead: 'Reunion contribution' }
+
+    const first = await member.call<{ claimId: string }>('submitPaymentClaim', request)
+    const replay = await member.call<{ claimId: string }>('submitPaymentClaim', request)
+    expect(replay.data.claimId).toBe(first.data.claimId)
+    expect((await adminDb.collection(`batches/${batchId}/paymentClaims`).get()).size).toBe(1)
+    expect((await adminDb.collection(`batches/${batchId}/auditEvents`).where('action', '==', 'payment.submitted').get()).size).toBe(1)
+    await coordinator.call('reviewPaymentClaim', { batchId, claimId: first.data.claimId, status: 'verified' })
+    await expect(coordinator.call('reviewPaymentClaim', { batchId, claimId: first.data.claimId, status: 'rejected' })).rejects.toMatchObject({ code: 'functions/failed-precondition' })
   })
 })

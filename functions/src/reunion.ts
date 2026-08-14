@@ -1,9 +1,10 @@
 import { FieldValue } from "firebase-admin/firestore"
-import { HttpsError, onCall } from "firebase-functions/v2/https"
+import { HttpsError } from "firebase-functions/v2/https"
 import { db, requireActiveMember, requireBatchId, requireCoordinator, requireUid } from "./shared.js"
 import { notify } from './notifications.js'
+import { limitCallable, secureCall } from './security.js'
 
-export const submitRsvp = onCall(async (request) => {
+export const submitRsvp = secureCall(async (request) => {
   const { batchId, attendance, accompanyingAdults, accompanyingChildren, foodPreference, hotelRequired, miscellaneousDetails } = request.data as Record<string, unknown>
   requireBatchId(batchId)
   const adultCount = typeof accompanyingAdults === 'number' ? accompanyingAdults : Number.NaN
@@ -14,6 +15,7 @@ export const submitRsvp = onCall(async (request) => {
   if (miscellaneousDetails !== undefined && (typeof miscellaneousDetails !== 'string' || miscellaneousDetails.length > 1000)) throw new HttpsError('invalid-argument', 'Miscellaneous details are invalid.')
   const uid = requireUid(request.auth)
   await requireActiveMember(batchId, uid)
+  await limitCallable(batchId, uid, 'submitRsvp')
   const configRef = db.doc(`batches/${batchId}/reunion/config`)
   const rsvpRef = db.doc(`batches/${batchId}/rsvps/${uid}`)
   await db.runTransaction(async (transaction) => {
@@ -26,17 +28,21 @@ export const submitRsvp = onCall(async (request) => {
   return { saved: true }
 })
 
-export const reopenRsvp = onCall(async (request) => {
+export const reopenRsvp = secureCall(async (request) => {
   const { batchId, memberUid } = request.data as { batchId?: unknown; memberUid?: unknown }
   requireBatchId(batchId)
   if (typeof memberUid !== 'string' || !memberUid) throw new HttpsError('invalid-argument', 'memberUid is required.')
   const actorUid = requireUid(request.auth)
   await requireCoordinator(batchId, request.auth)
-  await db.runTransaction(async (transaction) => {
+  await limitCallable(batchId, actorUid, 'reopenRsvp')
+  const changed = await db.runTransaction(async (transaction) => {
     const rsvpRef = db.doc(`batches/${batchId}/rsvps/${memberUid}`)
+    const rsvp = await transaction.get(rsvpRef)
+    if (rsvp.data()?.reopenedAt) return false
     transaction.set(rsvpRef, { uid: memberUid, batchId, reopenedBy: actorUid, reopenedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() }, { merge: true })
     transaction.create(db.collection(`batches/${batchId}/auditEvents`).doc(), { actorUid, action: 'rsvp.reopened', targetUid: memberUid, createdAt: FieldValue.serverTimestamp(), outcome: 'success' })
+    return true
   })
-  await notify(batchId, memberUid, 'rsvp', 'RSVP reopened', 'A Coordinator reopened your RSVP so you can update it.')
-  return { reopened: true }
+  if (changed) await notify(batchId, memberUid, 'rsvp', 'RSVP reopened', 'A Coordinator reopened your RSVP so you can update it.')
+  return { reopened: true, duplicate: !changed }
 })
