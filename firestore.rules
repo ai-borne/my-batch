@@ -41,6 +41,14 @@ service cloud.firestore {
       match /fundSummary/public { allow read: if active(batchId); allow write: if false; }
       match /expenses/{expenseId} { allow read: if coordinator(batchId) || (active(batchId) && resource.data.status == 'approved'); allow write: if false; }
       match /auditEvents/{eventId} { allow read: if coordinator(batchId); allow write: if false; }
+      match /posts/{postId} {
+        allow read: if active(batchId) && resource.data.status == 'visible';
+        allow write: if false;
+        match /comments/{commentId} { allow read: if active(batchId) && get(/databases/$(database)/documents/batches/$(batchId)/posts/$(postId)).data.status == 'visible' && resource.data.status == 'visible'; allow write: if false; }
+        match /likes/{uid} { allow read: if active(batchId) && get(/databases/$(database)/documents/batches/$(batchId)/posts/$(postId)).data.status == 'visible'; allow write: if false; }
+      }
+      match /albums/{albumId} { allow read: if active(batchId) && resource.data.status == 'visible'; allow write: if false; }
+      match /reports/{reportId} { allow read: if coordinator(batchId); allow write: if false; }
       match /{document=**} { allow read, write: if false; }
     }
   }

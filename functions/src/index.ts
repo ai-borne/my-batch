@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase-admin/app'
 import { FieldValue, getFirestore } from 'firebase-admin/firestore'
 import { HttpsError, onCall } from 'firebase-functions/v2/https'
+export { addArchiveMedia, createAlbum, createPost, deleteOwnPost, reportArchiveContent, moderateArchiveContent, saveArchiveComment, setArchiveLike } from './archive.js'
 
 initializeApp()
 

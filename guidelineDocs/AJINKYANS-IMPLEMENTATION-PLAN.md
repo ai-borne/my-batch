@@ -1,6 +1,6 @@
 # Ajinkyans — MVP Implementation Plan
 
-**Status:** Phase 3 complete. Phase 4 is next.
+**Status:** Phase 4 complete. Phase 5 is next.
 
 ## Success target
 
@@ -50,6 +50,8 @@ Deliver a private, secure MVP for the Ajinkyans 2002 batch: approved Google-auth
 **Exit criteria:** payment evidence is Coordinator-only; batchmates see aggregates and approved expenses only; no client can write verified finance state or fund totals; all tests and build pass.
 
 ## Phase 4 — Memory archive and moderation
+
+**Status:** complete.
 
 1. Implement scoped photo/video uploads, posts, albums, comments, likes, and reporting.
 2. Implement Coordinator moderation, removals, and audit events.
