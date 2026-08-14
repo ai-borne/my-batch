@@ -2,17 +2,27 @@ import { FieldValue } from "firebase-admin/firestore"
 import { HttpsError, onCall } from "firebase-functions/v2/https"
 import { db, requireActiveMember, requireBatchId, requireCoordinator, requirePaise, requireText, requireUid } from "./shared.js"
 
-async function writeFundSummary(transaction: FirebaseFirestore.Transaction, batchId: string) {
+const expenseCategories = new Set(['venue', 'accommodation', 'food', 'transport', 'programme', 'administration', 'contingency', 'other'])
+const financialRetentionUntil = new Date('2034-01-08T00:00:00.000Z')
+
+type FundChange = { collection: 'paymentClaims' | 'expenses'; id: string; status: string }
+async function writeFundSummary(transaction: FirebaseFirestore.Transaction, batchId: string, change?: FundChange) {
   const claims = await transaction.get(db.collection(`batches/${batchId}/paymentClaims`).where('status', '==', 'verified'))
   const expenses = await transaction.get(db.collection(`batches/${batchId}/expenses`).where('status', '==', 'approved'))
-  const collectedPaise = claims.docs.reduce((total, claim) => total + Number(claim.data().amountPaise ?? 0), 0)
-  const expensePaise = expenses.docs.reduce((total, expense) => total + Number(expense.data().amountPaise ?? 0), 0)
-  const verifiedMembers = new Set(claims.docs.map((claim) => String(claim.data().memberUid)))
+  const verifiedClaims = claims.docs.filter((claim) => !(change?.collection === 'paymentClaims' && change.id === claim.id && change.status !== 'verified'))
+  const approvedExpenses = expenses.docs.filter((expense) => !(change?.collection === 'expenses' && change.id === expense.id && change.status !== 'approved'))
+  const changedClaim = change?.collection === 'paymentClaims' && change.status === 'verified' && !claims.docs.some((claim) => claim.id === change.id) ? await transaction.get(db.doc(`batches/${batchId}/paymentClaims/${change!.id}`)) : undefined
+  const changedExpense = change?.collection === 'expenses' && change.status === 'approved' && !expenses.docs.some((expense) => expense.id === change.id) ? await transaction.get(db.doc(`batches/${batchId}/expenses/${change!.id}`)) : undefined
+  const finalClaims = changedClaim?.exists ? [...verifiedClaims, changedClaim] : verifiedClaims
+  const finalExpenses = changedExpense?.exists ? [...approvedExpenses, changedExpense] : approvedExpenses
+  const collectedPaise = finalClaims.reduce((total, claim) => total + Number(claim.data()?.amountPaise ?? 0), 0)
+  const expensePaise = finalExpenses.reduce((total, expense) => total + Number(expense.data()?.amountPaise ?? 0), 0)
+  const verifiedMembers = new Set(finalClaims.map((claim) => String(claim.data()?.memberUid)))
   const config = await transaction.get(db.doc(`batches/${batchId}/paymentConfig/current`))
   transaction.set(db.doc(`batches/${batchId}/fundSummary/public`), {
     targetPaise: Number(config.data()?.targetPaise ?? 0), collectedPaise, expensePaise,
     balancePaise: collectedPaise - expensePaise, verifiedFamilyCount: verifiedMembers.size,
-    verifiedPaymentCount: claims.size, updatedAt: FieldValue.serverTimestamp(),
+    verifiedPaymentCount: finalClaims.length, updatedAt: FieldValue.serverTimestamp(),
   }, { merge: true })
 }
 export const submitPaymentClaim = onCall(async (request) => {
@@ -24,12 +34,15 @@ export const submitPaymentClaim = onCall(async (request) => {
   const transactionId = requireText(utr, 'utr', 100)
   const head = requireText(contributionHead, 'contributionHead', 80)
   if (typeof paymentDate !== 'string' || Number.isNaN(Date.parse(paymentDate))) throw new HttpsError('invalid-argument', 'paymentDate is invalid.')
+  const config = await db.doc(`batches/${batchId}/paymentConfig/current`).get()
+  const allowedHeads = config.data()?.contributionHeads
+  if (!Array.isArray(allowedHeads) || !allowedHeads.includes(head)) throw new HttpsError('invalid-argument', 'Select a configured contribution head.')
   const claimRef = db.collection(`batches/${batchId}/paymentClaims`).doc()
   const expectedEvidencePath = `batches/${batchId}/payments/${claimRef.id}/evidence/`
   if (screenshotStoragePath !== undefined && (typeof screenshotStoragePath !== 'string' || !screenshotStoragePath.startsWith(expectedEvidencePath))) {
     throw new HttpsError('invalid-argument', 'The payment evidence path is invalid.')
   }
-  await claimRef.create({ batchId, memberUid: uid, amountPaise: amount, contributionHead: head, utr: transactionId, paymentDate: new Date(paymentDate), paymentMethod: 'upi', status: 'submitted', ...(screenshotStoragePath ? { screenshotStoragePath } : {}), submittedAt: FieldValue.serverTimestamp(), createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() })
+  await claimRef.create({ batchId, memberUid: uid, amountPaise: amount, contributionHead: head, utr: transactionId, paymentDate: new Date(paymentDate), paymentMethod: 'upi', status: 'submitted', ...(screenshotStoragePath ? { screenshotStoragePath } : {}), retentionUntil: financialRetentionUntil, submittedAt: FieldValue.serverTimestamp(), createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() })
   await db.collection(`batches/${batchId}/auditEvents`).add({ actorUid: uid, action: 'payment.submitted', targetUid: uid, targetId: claimRef.id, createdAt: FieldValue.serverTimestamp(), outcome: 'success' })
   return { submitted: true, claimId: claimRef.id }
 })
@@ -56,8 +69,9 @@ export const reviewPaymentClaim = onCall(async (request) => {
     const claimRef = db.doc(`batches/${batchId}/paymentClaims/${claimId}`)
     const claim = await transaction.get(claimRef)
     if (!claim.exists) throw new HttpsError('not-found', 'Payment claim was not found.')
+    const nextStatus = String(status)
+    if (nextStatus === 'verified' || claim.data()?.status === 'verified') await writeFundSummary(transaction, batchId, { collection: 'paymentClaims', id: claimId, status: nextStatus })
     transaction.update(claimRef, { status, reviewedBy: actorUid, reviewedAt: FieldValue.serverTimestamp(), ...(status === 'rejected' ? { rejectionReason: note ?? 'Unable to verify this payment.' } : {}), ...(status === 'underReview' ? { clarificationNote: note ?? 'Coordinator is reviewing this payment.' } : {}), updatedAt: FieldValue.serverTimestamp() })
-    if (status === 'verified' || claim.data()?.status === 'verified') await writeFundSummary(transaction, batchId)
     transaction.create(db.collection(`batches/${batchId}/auditEvents`).doc(), { actorUid, action: `payment.${status}`, targetUid: claim.data()?.memberUid, targetId: claimId, createdAt: FieldValue.serverTimestamp(), outcome: 'success' })
   })
   return { reviewed: true }
@@ -67,11 +81,12 @@ export const saveExpense = onCall(async (request) => {
   const { batchId, category, amountPaise, vendor, expenseDate, notes, receiptStoragePath } = request.data as Record<string, unknown>
   requireBatchId(batchId); const actorUid = requireUid(request.auth); await requireCoordinator(batchId, request.auth)
   const amount = requirePaise(amountPaise, 'amountPaise'); const expenseCategory = requireText(category, 'category', 80); const expenseVendor = requireText(vendor, 'vendor', 160)
+  if (!expenseCategories.has(expenseCategory)) throw new HttpsError('invalid-argument', 'Select a supported expense category.')
   if (typeof expenseDate !== 'string' || Number.isNaN(Date.parse(expenseDate))) throw new HttpsError('invalid-argument', 'expenseDate is invalid.')
   if (notes !== undefined && (typeof notes !== 'string' || notes.length > 1000)) throw new HttpsError('invalid-argument', 'notes are invalid.')
   const expenseRef = db.collection(`batches/${batchId}/expenses`).doc()
   if (receiptStoragePath !== undefined && (typeof receiptStoragePath !== 'string' || !receiptStoragePath.startsWith(`batches/${batchId}/expenses/${expenseRef.id}/receipts/`))) throw new HttpsError('invalid-argument', 'The receipt path is invalid.')
-  await expenseRef.create({ category: expenseCategory, amountPaise: amount, vendor: expenseVendor, expenseDate: new Date(expenseDate), ...(notes ? { notes } : {}), ...(receiptStoragePath ? { receiptStoragePath } : {}), status: 'draft', createdBy: actorUid, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() })
+  await expenseRef.create({ category: expenseCategory, amountPaise: amount, vendor: expenseVendor, expenseDate: new Date(expenseDate), ...(notes ? { notes } : {}), ...(receiptStoragePath ? { receiptStoragePath } : {}), retentionUntil: financialRetentionUntil, status: 'draft', createdBy: actorUid, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() })
   await db.collection(`batches/${batchId}/auditEvents`).add({ actorUid, action: 'expense.created', targetId: expenseRef.id, createdAt: FieldValue.serverTimestamp(), outcome: 'success' })
   return { saved: true, expenseId: expenseRef.id }
 })
@@ -95,8 +110,9 @@ export const reviewExpense = onCall(async (request) => {
   await db.runTransaction(async (transaction) => {
     const ref = db.doc(`batches/${batchId}/expenses/${expenseId}`); const expense = await transaction.get(ref)
     if (!expense.exists) throw new HttpsError('not-found', 'Expense was not found.')
+    const nextStatus = String(status)
+    if (nextStatus === 'approved' || expense.data()?.status === 'approved') await writeFundSummary(transaction, batchId, { collection: 'expenses', id: expenseId, status: nextStatus })
     transaction.update(ref, { status, approvedBy: actorUid, approvedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() })
-    if (status === 'approved' || expense.data()?.status === 'approved') await writeFundSummary(transaction, batchId)
     transaction.create(db.collection(`batches/${batchId}/auditEvents`).doc(), { actorUid, action: `expense.${status}`, targetId: expenseId, createdAt: FieldValue.serverTimestamp(), outcome: 'success' })
   })
   return { reviewed: true }

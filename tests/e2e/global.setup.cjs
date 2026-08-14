@@ -25,4 +25,5 @@ module.exports = async () => {
   await db.doc(`batches/${batchId}/memberships/suspended`).set({ uid: 'suspended', status: 'suspended', role: 'batchmate' })
   await db.doc(`batches/${batchId}/accessRequests/pending`).set({ uid: 'pending', batchId, displayName: 'Pending Member', houseId: 'tilak', passingYear: 2002, status: 'pending' })
   await db.doc(`batches/${batchId}/accessRequests/rejected`).set({ uid: 'rejected', batchId, displayName: 'Rejected Member', houseId: 'tilak', passingYear: 2002, status: 'rejected', rejectionReason: 'Use your full name.', rejectedBy: 'coordinator' })
+  await db.doc(`batches/${batchId}/paymentConfig/current`).set({ currency: 'INR', upiId: 'collection@upi', accountLabel: 'Reunion collection', defaultFamilyAmountPaise: 3000000, targetPaise: 5000000, contributionHeads: ['Reunion contribution'], qrStoragePath: `batches/${batchId}/reunion/qr/placeholder.png`, updatedBy: 'coordinator', updatedAt: new Date() })
 }

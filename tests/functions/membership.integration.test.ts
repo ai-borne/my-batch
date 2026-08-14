@@ -60,3 +60,36 @@ describe('membership callables', () => {
     await expect(otherCoordinator.call('manageMembership', { batchId, memberUid: requesterUid, action: 'suspend' })).rejects.toMatchObject({ code: 'functions/permission-denied' })
   })
 })
+
+describe('Phase 4 finance callables', () => {
+  it('derives the public fund only from verified claims and approved expenses', async () => {
+    const coordinator = await signIn('finance-coordinator@example.test')
+    const member = await signIn('finance-member@example.test')
+    const coordinatorUid = coordinator.auth.currentUser!.uid
+    const memberUid = member.auth.currentUser!.uid
+    await adminDb.doc(`batches/${batchId}/memberships/${coordinatorUid}`).set({ uid: coordinatorUid, status: 'active', role: 'coordinator' })
+    await adminDb.doc(`batches/${batchId}/memberships/${memberUid}`).set({ uid: memberUid, status: 'active', role: 'batchmate' })
+    await adminDb.doc(`batches/${batchId}/paymentConfig/current`).set({ contributionHeads: ['Reunion contribution'], targetPaise: 50000 })
+
+    const submitted = await member.call<{ claimId: string }>('submitPaymentClaim', { batchId, amountPaise: 12000, utr: 'UTR-001', paymentDate: '2027-01-06', contributionHead: 'Reunion contribution' })
+    await coordinator.call('reviewPaymentClaim', { batchId, claimId: submitted.data.claimId, status: 'verified' })
+    const expense = await coordinator.call<{ expenseId: string }>('saveExpense', { batchId, category: 'venue', amountPaise: 3000, vendor: 'Venue Ltd', expenseDate: '2027-01-06' })
+    await coordinator.call('reviewExpense', { batchId, expenseId: expense.data.expenseId, status: 'approved' })
+
+    expect((await adminDb.doc(`batches/${batchId}/fundSummary/public`).get()).data()).toMatchObject({ targetPaise: 50000, collectedPaise: 12000, expensePaise: 3000, balancePaise: 9000, verifiedFamilyCount: 1, verifiedPaymentCount: 1 })
+    expect((await adminDb.doc(`batches/${batchId}/paymentClaims/${submitted.data.claimId}`).get()).data()).toMatchObject({ status: 'verified', retentionUntil: expect.anything() })
+    expect((await adminDb.doc(`batches/${batchId}/expenses/${expense.data.expenseId}`).get()).data()).toMatchObject({ status: 'approved', retentionUntil: expect.anything() })
+  })
+
+  it('rejects unconfigured contribution heads and non-Coordinator finance review', async () => {
+    const coordinator = await signIn('finance-two-coordinator@example.test')
+    const member = await signIn('finance-two-member@example.test')
+    const coordinatorUid = coordinator.auth.currentUser!.uid
+    const memberUid = member.auth.currentUser!.uid
+    await adminDb.doc(`batches/${batchId}/memberships/${coordinatorUid}`).set({ uid: coordinatorUid, status: 'active', role: 'coordinator' })
+    await adminDb.doc(`batches/${batchId}/memberships/${memberUid}`).set({ uid: memberUid, status: 'active', role: 'batchmate' })
+    await adminDb.doc(`batches/${batchId}/paymentConfig/current`).set({ contributionHeads: ['Reunion contribution'] })
+    await expect(member.call('submitPaymentClaim', { batchId, amountPaise: 100, utr: 'UTR-002', paymentDate: '2027-01-06', contributionHead: 'Forged head' })).rejects.toMatchObject({ code: 'functions/invalid-argument' })
+    await expect(member.call('saveExpense', { batchId, category: 'venue', amountPaise: 100, vendor: 'X', expenseDate: '2027-01-06' })).rejects.toMatchObject({ code: 'functions/permission-denied' })
+  })
+})

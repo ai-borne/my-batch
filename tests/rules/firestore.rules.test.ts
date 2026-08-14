@@ -80,6 +80,21 @@ describe('private batch boundaries', () => {
     await assertSucceeds(db('coordinator').doc('batches/batch-a/reunion/config').update({ title: 'Silver Jubilee' }))
     await assertFails(db('member').doc('batches/batch-a/rsvps/member').set({ attendance: 'yes' }))
   })
+  it('keeps schedule and operational contacts batch-private while allowing Coordinator configuration', async () => {
+    const member = db('member'); const coordinator = db('coordinator'); const pending = db('pending')
+    await assertSucceeds(coordinator.doc('batches/batch-a/reunionSchedule/welcome').set({ title: 'Welcome', startsAt: new Date() }))
+    await assertSucceeds(coordinator.doc('batches/batch-a/reunionContacts/help').set({ name: 'Help desk', phone: '123' }))
+    await assertSucceeds(member.doc('batches/batch-a/reunionSchedule/welcome').get())
+    await assertSucceeds(member.doc('batches/batch-a/reunionContacts/help').get())
+    await assertFails(member.doc('batches/batch-a/reunionSchedule/forged').set({ title: 'Forged' }))
+    await assertFails(pending.doc('batches/batch-a/reunionContacts/help').get())
+  })
+  it('requires configured contribution heads when a Coordinator saves payment instructions', async () => {
+    const coordinator = db('coordinator')
+    const base = { defaultFamilyAmountPaise: 10000, targetPaise: 50000, currency: 'INR', upiId: 'collection@upi', qrStoragePath: 'batches/batch-a/reunion/qr/code.png', updatedBy: 'coordinator', updatedAt: new Date() }
+    await assertFails(coordinator.doc('batches/batch-a/paymentConfig/current').set(base))
+    await assertSucceeds(coordinator.doc('batches/batch-a/paymentConfig/current').set({ ...base, contributionHeads: ['Reunion contribution'] }))
+  })
   it('shows only visible archive content to active batch members', async () => {
     const member = db('member')
     await assertSucceeds(member.doc('batches/batch-a/posts/visible').get())

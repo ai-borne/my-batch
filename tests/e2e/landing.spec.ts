@@ -50,3 +50,14 @@ test('Coordinator tools live under Account and are hidden from batchmates', asyn
   await signIn(page, 'member@example.test'); await page.goto('/account')
   await expect(page.getByRole('link', { name: 'Open Coordinator tools' })).toHaveCount(0)
 })
+
+test('a member can submit, have a payment rejected, and submit a corrected claim', async ({ page }) => {
+  await signIn(page, 'member@example.test'); await page.goto('/reunion/fund')
+  await page.getByLabel('Amount paid (₹)').fill('30000'); await page.getByLabel('UTR / transaction ID').fill('UTR-PLAYWRIGHT-1'); await page.getByLabel('Payment date').fill('2027-01-06')
+  await page.getByRole('button', { name: 'Submit for review' }).click(); await expect(page.getByRole('status')).toContainText('submitted')
+  await page.getByRole('button', { name: 'Sign out' }).click(); await signIn(page, 'coordinator@example.test'); await page.goto('/account/coordinator')
+  await expect(page.getByText('UTR-PLAYWRIGHT-1')).toBeVisible(); await page.getByRole('button', { name: 'Reject' }).first().click()
+  await page.getByRole('button', { name: 'Sign out' }).click(); await signIn(page, 'member@example.test'); await page.goto('/reunion/fund')
+  await page.getByLabel('Amount paid (₹)').fill('30000'); await page.getByLabel('UTR / transaction ID').fill('UTR-PLAYWRIGHT-2'); await page.getByLabel('Payment date').fill('2027-01-06')
+  await page.getByRole('button', { name: 'Submit for review' }).click(); await expect(page.getByRole('status')).toContainText('submitted')
+})

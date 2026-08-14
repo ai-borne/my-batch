@@ -23,8 +23,8 @@ batches/{batchId}/houses/{houseId}
 batches/{batchId}/profiles/{uid}
 batches/{batchId}/accessRequests/{requestId}
 batches/{batchId}/reunion/config
-batches/{batchId}/reunion/schedule/{eventId}
-batches/{batchId}/reunion/contacts/{contactId}
+batches/{batchId}/reunionSchedule/{eventId}
+batches/{batchId}/reunionContacts/{contactId}
 batches/{batchId}/rsvps/{uid}
 batches/{batchId}/posts/{postId}
 batches/{batchId}/posts/{postId}/comments/{commentId}
