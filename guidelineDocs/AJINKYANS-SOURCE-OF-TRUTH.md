@@ -13,6 +13,8 @@ The first pilot is **Sainik School Satara — 2002 Batch**, for its **Silver Jub
 - `ajinkyans.com`
 - `ajinkyans.in`
 
+Pilot success is assessed after the reunion, with an initial target of at least 50 participating members and a functioning UPI payment flow.
+
 The immediate experience is for one known batch. The architecture must nevertheless model a reusable platform: school → batch → members → houses, events, memories, collections, and expenses. The long-term positioning is not “another social network”, but a **private digital community + reunion platform + permanent memory archive**.
 
 The intended emotional message is:
@@ -133,6 +135,8 @@ Memories is a first-class primary tab, not an afterthought or simply a “feed�
 - Members can post multiple photos or video with a caption, optional people tags, and an optional album.
 - Post cards show author/avatar/house, media, caption, likes and comment count.
 - Interactions: like, comment, report; an author can delete their own post.
+- Posts, photos, videos, comments, and likes appear immediately after submission. Coordinators handle reports, flagged content, removals, and appeals; no pre-publication Coordinator approval is required.
+- Privacy, consent, retention, takedown, and moderation rules are defined in `guidelineDocs/AJINKYANS-PRIVACY-CONSENT-MODERATION-POLICY.md`.
 - Albums are supported for grouping memories such as school trips, sports, NDA, and the 2027 reunion.
 - Upload UI must show previews and progress, and warn before abandoning an active upload.
 - Post detail shows media, author, caption, likes, and comments.

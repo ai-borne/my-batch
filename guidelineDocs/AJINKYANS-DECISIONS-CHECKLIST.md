@@ -37,8 +37,8 @@ These answers came from the pilot owner and should guide the MVP. Items marked `
 - [x] **Coordinator-managed operations:** Coordinators configure the schedule, venue logistics, UPI/payment instructions, and related reunion details from their accounts.
 - [x] **Contribution timing:** the final family contribution is calculated after users submit RSVP details and Coordinators confirm the RSVP strength before the cutoff.
 - [x] **Membership approval:** a user signs in with Google, submits a batch access request, and a Coordinator approves the user’s membership before private content is available.
-- [~] **Privacy and safety:** use leading social-product standards as the baseline; concrete consent, retention, takedown, and moderation rules still need to be written.
-- [~] **Coordinator approval scope:** Coordinator approval is required, but the exact objects requiring approval must be specified.
+- [x] **Privacy and safety:** use the pilot privacy, consent, retention, takedown, and moderation policy documented in `AJINKYANS-PRIVACY-CONSENT-MODERATION-POLICY.md`.
+- [x] **Coordinator approval scope:** no pre-publication approval is required. Posts, photos, videos, comments, and likes appear immediately; Coordinators handle reports, removals, and flagged content.
 - [x] **Firebase ownership:** the Firebase project is owned and administered by the Super Admin.
 - [x] **Pilot success timing:** pilot success is evaluated after the Ajinkyans 2002 reunion.
 - [x] **Identifiers:** use an immutable batch ID such as `batch-2002-3711`; store `schoolId: "3711"` and `passingYear: 2002` separately.
@@ -58,7 +58,7 @@ These answers came from the pilot owner and should guide the MVP. Items marked `
 - [x] Confirm that the Super Admin owns the Firebase project and production administration.
 - [x] Confirm that pilot success is assessed after the 2002 batch reunion.
 - [ ] Define concrete privacy, consent, retention, takedown, and moderation rules based on the agreed high-standard baseline.
-- [ ] Clarify what content or records require explicit Coordinator approval before publication.
+- [x] Confirm that no content requires Coordinator approval before publication; Coordinators handle reports, removals, and flagged content.
 
 ## 1. Pilot identity and scope
 
@@ -139,12 +139,12 @@ These answers came from the pilot owner and should guide the MVP. Items marked `
 - [ ] Define who may create, edit, and delete albums.
 - [ ] Define post, comment, and user reporting categories.
 - [ ] Define moderation actions: dismiss, hide, remove, suspend, and appeal/escalation.
-- [ ] Define media ownership, consent, takedown, and deletion rules.
+- [x] Define media ownership, consent, takedown, and deletion rules in `AJINKYANS-PRIVACY-CONSENT-MODERATION-POLICY.md`.
 - [x] Decide whether comments are enabled at pilot launch: enabled.
 
 ## 8. Privacy, security, and compliance
 
-- [~] Approve the privacy notice and consent language for profiles, photos/videos, RSVP, and payment evidence using leading social-product standards; exact text remains open.
+- [x] Approve the privacy notice and consent baseline for profiles, photos/videos, RSVP, and payment evidence using the pilot privacy policy; final UI wording remains an implementation task.
 - [ ] Confirm that private batch data is excluded from public indexing and unauthenticated reads.
 - [ ] Define retention/deletion periods for inactive accounts, reports, payment evidence, and removed media.
 - [ ] Define the process for a member requesting correction or removal of personal data.
