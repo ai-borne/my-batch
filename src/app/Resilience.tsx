@@ -1,4 +1,5 @@
 import { Component, ReactNode, useEffect, useState } from 'react'
+import { COPY } from '../lib/copy'
 
 export function OfflineNotice() {
   const [online, setOnline] = useState(() => navigator.onLine)
@@ -8,7 +9,7 @@ export function OfflineNotice() {
     window.addEventListener('offline', update)
     return () => { window.removeEventListener('online', update); window.removeEventListener('offline', update) }
   }, [])
-  return online ? null : <p className="connection-notice" role="status">You’re offline. Previously opened app screens remain available; private data will refresh when you reconnect.</p>
+  return online ? null : <p className="connection-notice" role="status">You’re offline. Previously opened app screens remain available; {COPY.offlinePrivateData}.</p>
 }
 
 type BoundaryState = { failed: boolean }

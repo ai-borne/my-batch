@@ -1,16 +1,9 @@
-export const PILOT_BATCH_ID = 'batch-2002-3711'
+import { HOUSES, PILOT_BATCH_ID } from './batchDefaults'
+import type { Membership, MembershipStatus } from './types'
 
-export type MembershipStatus = 'none' | 'pending' | 'active' | 'suspended' | 'removed'
-export type Membership = { status: MembershipStatus; role?: 'batchmate' | 'coordinator'; houseId?: string | null }
+export { HOUSES, PILOT_BATCH_ID }
+export type { Membership, MembershipStatus }
 
-export const HOUSES = [
-  { id: 'shivaji', name: 'Shivaji', group: 'Junior' },
-  { id: 'nehru', name: 'Nehru', group: 'Junior' },
-  { id: 'karve', name: 'Karve', group: 'Senior' },
-  { id: 'rana-pratap', name: 'Rana Pratap', group: 'Senior' },
-  { id: 'shastri', name: 'Shastri', group: 'Senior' },
-  { id: 'tilak', name: 'Tilak', group: 'Senior' },
-] as const
 
 export function destinationFor(membership: Membership): '/' | '/request-access' | '/pending' | '/home' | '/access-denied' {
   if (membership.status === 'none') return '/request-access'

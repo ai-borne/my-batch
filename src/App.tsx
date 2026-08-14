@@ -4,6 +4,7 @@ import { AccessRequest } from './auth/AccessRequest'
 import { useAuth } from './auth/AuthProvider'
 import { BatchShell } from './batch/BatchShell'
 import { destinationFor } from './lib/membership'
+import { COPY } from './lib/copy'
 
 const CoordinatorPage = lazy(async () => ({ default: (await import('./batch/CoordinatorPage')).CoordinatorPage }))
 const HousesPage = lazy(async () => ({ default: (await import('./batch/HousesPage')).HousesPage }))
@@ -12,7 +13,7 @@ const ReunionPage = lazy(async () => ({ default: (await import('./batch/ReunionP
 const FinancePage = lazy(async () => ({ default: (await import('./batch/FinancePage')).FinancePage }))
 const MemoriesPage = lazy(async () => ({ default: (await import('./batch/MemoriesPage')).MemoriesPage }))
 
-function Landing() { const { signIn } = useAuth(); return <main className="auth-card"><p className="eyebrow">Sainik School Satara · 2002 Batch</p><h1>25 years. One brotherhood.</h1><p>Our memories, preserved—privately for approved members.</p><button onClick={() => void signIn()}>Continue with Google</button></main> }
+function Landing() { const { signIn } = useAuth(); return <main className="auth-card"><p className="eyebrow">{COPY.batchName}</p><h1>25 years. One brotherhood.</h1><p>{COPY.privateAccess}</p><button onClick={() => void signIn()}>{COPY.signIn}</button></main> }
 function Pending() { return <main className="auth-card"><h1>Approval pending</h1><p>A Coordinator will review your request. Private batch data remains unavailable until approval.</p></main> }
 function Denied() { return <main className="auth-card"><h1>Access unavailable</h1><p>Your batch access is not active. Please contact a Coordinator on WhatsApp.</p></main> }
 function Home() { return <section className="page-stack"><div className="hero-card"><div className="hero-content"><p className="eyebrow">Sainik School Satara · 2002 Batch</p><h1>One batch.<br /><em>One home.</em></h1><p className="hero-caption">Silver Jubilee Reunion · January 2027</p></div></div><div className="panel"><h2>Welcome back</h2><p className="muted">Use the directory to reconnect and the reunion hub to confirm your plans.</p></div></section> }
