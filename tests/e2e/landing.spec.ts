@@ -21,3 +21,32 @@ test('a rejected requester can correct and resubmit access details', async ({ pa
 test('a suspended member is redirected away from private routes', async ({ page }) => {
   await signIn(page, 'suspended@example.test'); await page.goto('/home'); await expect(page).toHaveURL(/\/access-denied$/)
 })
+
+test('an active member gets the accessible five-item mobile navigation and Home actions', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await signIn(page, 'coordinator@example.test'); await page.goto('/home')
+  const navigation = page.getByRole('navigation', { name: 'Batch navigation' })
+  await expect(navigation).toBeVisible()
+  await expect(navigation.getByRole('link')).toHaveCount(5)
+  await expect(navigation).toContainText('Home')
+  await expect(navigation).toContainText('Account')
+  await expect(navigation).not.toContainText('Fund')
+  await page.getByRole('link', { name: 'View reunion' }).click()
+  await expect(page).toHaveURL(/\/reunion$/)
+})
+
+test('desktop keeps matching top navigation without the mobile bar', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await signIn(page, 'coordinator@example.test'); await page.goto('/home')
+  const navigation = page.locator('nav[aria-label="Batch navigation"]:visible')
+  await expect(navigation).toContainText('Memories')
+  await expect(navigation.getByRole('link')).toHaveCount(5)
+})
+
+test('Coordinator tools live under Account and are hidden from batchmates', async ({ page }) => {
+  await signIn(page, 'coordinator@example.test'); await page.goto('/account')
+  await expect(page.getByRole('link', { name: 'Open Coordinator tools' })).toBeVisible()
+  await page.getByRole('button', { name: 'Sign out' }).click()
+  await signIn(page, 'member@example.test'); await page.goto('/account')
+  await expect(page.getByRole('link', { name: 'Open Coordinator tools' })).toHaveCount(0)
+})

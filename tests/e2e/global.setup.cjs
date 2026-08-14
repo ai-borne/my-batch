@@ -12,6 +12,7 @@ module.exports = async () => {
   const batchId = 'batch-2002-3711'
   const users = [
     ['coordinator', 'coordinator@example.test'],
+    ['member', 'member@example.test'],
     ['pending', 'pending@example.test'],
     ['rejected', 'rejected@example.test'],
     ['suspended', 'suspended@example.test'],
@@ -19,6 +20,7 @@ module.exports = async () => {
   for (const [uid, email] of users) await auth.createUser({ uid, email, password: 'password-123' })
   await db.doc(`batches/${batchId}`).set({ name: 'Ajinkyans 2002' })
   await db.doc(`batches/${batchId}/memberships/coordinator`).set({ uid: 'coordinator', status: 'active', role: 'coordinator' })
+  await db.doc(`batches/${batchId}/memberships/member`).set({ uid: 'member', status: 'active', role: 'batchmate' })
   await db.doc(`batches/${batchId}/memberships/pending`).set({ uid: 'pending', status: 'pending', role: 'batchmate' })
   await db.doc(`batches/${batchId}/memberships/suspended`).set({ uid: 'suspended', status: 'suspended', role: 'batchmate' })
   await db.doc(`batches/${batchId}/accessRequests/pending`).set({ uid: 'pending', batchId, displayName: 'Pending Member', houseId: 'tilak', passingYear: 2002, status: 'pending' })
