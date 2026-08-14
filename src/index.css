@@ -12,7 +12,7 @@
 body { margin: 0; min-width: 320px; min-height: 100vh; }
 button { font: inherit; }
 button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid var(--color-accent); outline-offset: 3px; }
-button { border: 0; border-radius: 10px; padding: 11px 15px; cursor: pointer; background: var(--color-primary); color: var(--color-white); font-weight: 700; }
+button { min-height: 44px; border: 0; border-radius: 10px; padding: 11px 15px; cursor: pointer; background: var(--color-primary); color: var(--color-white); font-weight: 700; }
 input, select, textarea { width: 100%; margin-top: 6px; padding: 10px; border: 1px solid var(--color-border); border-radius: 8px; font: inherit; color: inherit; background: transparent; }
 textarea { min-height: 90px; resize: vertical; }
 .auth-card { width: min(100% - 32px, 520px); margin: 12vh auto; padding: 32px; border: 1px solid var(--color-border); border-radius: 18px; background: var(--color-white); }
@@ -30,7 +30,7 @@ textarea { min-height: 90px; resize: vertical; }
 .member-row > span:first-child { display: flex; align-items: center; gap: 10px; }
 .member-row small { display: block; margin-top: 3px; color: var(--color-muted); }
 .member-actions { display: flex; flex-wrap: wrap; justify-content: end; gap: 6px; }
-.member-actions select, .member-actions button { width: auto; margin: 0; padding: 7px 9px; font-size: 12px; }
+.member-actions select, .member-actions button { width: auto; min-height: 44px; margin: 0; padding: 7px 9px; font-size: 12px; }
 .finance-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 18px; }
 .finance-summary span { display: grid; gap: 4px; }
 .finance-summary small { color: var(--color-muted); }
@@ -125,6 +125,14 @@ h2 { font-size: 20px; letter-spacing: -.035em; margin-bottom: 6px; }
 .recent-memory .muted { margin-top: 6px; }
 .empty-state { display: grid; gap: 10px; margin-top: 12px; }
 .text-link { display: inline-flex; align-items: center; min-height: 44px; color: var(--color-primary); font-weight: 700; }
+.dialog-backdrop { position: fixed; z-index: 40; inset: 0; display: grid; place-items: center; padding: 20px; background: var(--color-overlay); }
+.form-dialog { width: min(100%, 520px); max-height: calc(100vh - 40px); overflow: auto; padding: 24px; border: 1px solid var(--color-border); border-radius: 16px; background: var(--color-white); box-shadow: 0 10px 30px var(--color-shadow); }
+.dark .form-dialog { background: var(--color-surface-dark); border-color: var(--color-border-dark); }
+.form-dialog form { display: grid; gap: 16px; }
+.form-dialog h2, .form-dialog p { margin-bottom: 0; }
+.dialog-actions { display: flex; flex-wrap: wrap; justify-content: end; gap: 8px; }
+.secondary-button { background: transparent; border: 1px solid var(--color-border); color: inherit; }
+.dark .secondary-button { border-color: var(--color-border-dark); }
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; } }
 
@@ -139,7 +147,7 @@ h2 { font-size: 20px; letter-spacing: -.035em; margin-bottom: 6px; }
   .recent-memories { grid-template-columns: repeat(2, 1fr); }
 }
 
-@media (max-width: 500px) {
+@media (max-width: 700px) {
   .main-content { width: min(100% - 24px, 920px); padding-top: 16px; }
   .hero-card { min-height: 360px; }
   .countdown-card { padding: 18px; }
@@ -153,4 +161,6 @@ h2 { font-size: 20px; letter-spacing: -.035em; margin-bottom: 6px; }
   .home-stats .panel { padding: 13px; }
   .member-row { align-items: flex-start; flex-direction: column; }
   .member-actions { justify-content: start; }
+  .dialog-actions { justify-content: stretch; }
+  .dialog-actions button { flex: 1 1 160px; }
 }

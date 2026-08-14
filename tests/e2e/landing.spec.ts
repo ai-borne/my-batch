@@ -12,7 +12,9 @@ test('mobile landing exposes the installable app metadata without private conten
 })
 
 test('a Coordinator test sign-in reaches Home and can approve a pending request', async ({ page }) => {
-  await signIn(page, 'coordinator@example.test'); await page.goto('/admin'); await expect(page.getByText('Pending Member')).toBeVisible(); await page.getByRole('button', { name: 'Approve' }).click(); await expect(page.getByRole('status')).toHaveText('Member approved.')
+  await signIn(page, 'coordinator@example.test'); await page.goto('/admin'); await expect(page.getByText('Pending Member')).toBeVisible()
+  const reject = page.getByRole('button', { name: 'Reject' }).first(); await reject.click(); const dialog = page.getByRole('alertdialog', { name: 'Reject access request' }); await dialog.getByLabel('Reason for rejection').fill('Please confirm your full name.'); await dialog.getByRole('button', { name: 'Cancel' }).click(); await expect(reject).toBeFocused()
+  await page.getByRole('button', { name: 'Approve' }).click(); await expect(page.getByRole('status')).toHaveText('Member approved.')
 })
 
 test('a rejected requester can correct and resubmit access details', async ({ page }) => {
@@ -65,7 +67,7 @@ test('a member can submit, have a payment rejected, and submit a corrected claim
   await page.getByLabel('Amount paid (₹)').fill('30000'); await page.getByLabel('UTR / transaction ID').fill('UTR-PLAYWRIGHT-1'); await page.getByLabel('Payment date').fill('2027-01-06')
   await page.getByRole('button', { name: 'Submit for review' }).click(); await expect(page.getByRole('status')).toContainText('submitted')
   await signOut(page); await signIn(page, 'coordinator@example.test'); await page.goto('/account/coordinator')
-  await expect(page.getByText('UTR-PLAYWRIGHT-1')).toBeVisible(); await page.getByRole('button', { name: 'Reject' }).first().click()
+  await expect(page.getByText('UTR-PLAYWRIGHT-1')).toBeVisible(); await page.locator('section.panel').filter({ has: page.getByRole('heading', { name: 'Payment claims' }) }).getByRole('button', { name: 'Reject' }).click()
   await signOut(page); await signIn(page, 'member@example.test'); await page.goto('/reunion/fund')
   await page.getByLabel('Amount paid (₹)').fill('30000'); await page.getByLabel('UTR / transaction ID').fill('UTR-PLAYWRIGHT-2'); await page.getByLabel('Payment date').fill('2027-01-06')
   await page.getByRole('button', { name: 'Submit for review' }).click(); await expect(page.getByRole('status')).toContainText('submitted')
@@ -78,7 +80,7 @@ test('members can comment and report a memory, then a Coordinator moderates it',
   await expect(page.getByRole('status')).toContainText('Comment added')
   await page.getByRole('button', { name: 'Report' }).click(); await expect(page.getByRole('status')).toContainText('Report sent')
   await signOut(page); await signIn(page, 'coordinator@example.test'); await page.goto('/memories')
-  await expect(page.getByText('Open moderation reports')).toBeVisible(); await page.getByRole('button', { name: 'Hide' }).click()
+  await expect(page.getByText('Open moderation reports')).toBeVisible(); await page.getByRole('button', { name: 'Hide' }).click(); await page.getByRole('alertdialog', { name: 'Hide reported content' }).getByRole('button', { name: 'Hide content' }).click()
   await expect(page.getByRole('status')).toContainText('hidden')
 })
 
@@ -89,4 +91,14 @@ test('a member uploads an image memory that becomes visible in the private archi
   await page.getByLabel(/I have the right to share this/).first().check(); await page.getByRole('button', { name: 'Publish memory' }).click()
   await expect(page.getByRole('status')).toContainText('Memory published')
   await expect(page.getByText('Uploaded archive image')).toBeVisible()
+})
+
+test('destructive archive actions require an accessible confirmation and restore focus on cancellation', async ({ page }) => {
+  await signIn(page, 'member@example.test'); await page.goto('/memories')
+  const deleteButton = page.getByRole('button', { name: 'Delete' })
+  await deleteButton.click()
+  const dialog = page.getByRole('alertdialog', { name: 'Delete memory' })
+  await expect(dialog).toContainText('This action cannot be undone.')
+  await dialog.getByRole('button', { name: 'Cancel' }).click()
+  await expect(deleteButton).toBeFocused()
 })

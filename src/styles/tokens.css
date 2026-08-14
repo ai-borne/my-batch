@@ -20,5 +20,6 @@
   --color-nav-surface: rgb(255 255 255 / 92%);
   --color-nav-surface-dark: rgb(21 26 24 / 92%);
   --color-shadow: rgb(23 32 28 / 12%);
+  --color-overlay: rgb(23 32 28 / 52%);
   --color-mask: #000;
 }
