@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react'
-import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore'
+import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore/lite'
 import { getBlob, ref, uploadBytes } from 'firebase/storage'
 import { httpsCallable } from 'firebase/functions'
 import { firebaseServices } from '../lib/firebase'

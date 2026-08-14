@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { collection, getDocs, query } from 'firebase/firestore'
+import { collection, getDocs, query } from 'firebase/firestore/lite'
 import { firebaseServices } from '../lib/firebase'
 import { HOUSES, PILOT_BATCH_ID } from '../lib/membership'
 

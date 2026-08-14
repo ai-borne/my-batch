@@ -9,6 +9,7 @@
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 320px; min-height: 100vh; }
 button { font: inherit; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid #a2864a; outline-offset: 3px; }
 button { border: 0; border-radius: 10px; padding: 11px 15px; cursor: pointer; background: #506759; color: #fff; font-weight: 700; }
 input, select, textarea { width: 100%; margin-top: 6px; padding: 10px; border: 1px solid #dfded8; border-radius: 8px; font: inherit; color: inherit; background: transparent; }
 textarea { min-height: 90px; resize: vertical; }
@@ -45,6 +46,7 @@ textarea { min-height: 90px; resize: vertical; }
 .icon-button:hover, .round-arrow:hover { background: color-mix(in srgb, currentColor 8%, transparent); }
 .avatar { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 99px; background: #506759; color: #fff; font-size: 12px; font-weight: 700; }
 .main-content { width: min(100% - 32px, 920px); margin: 0 auto; padding: 24px 0 108px; }
+.connection-notice { margin: 0 0 16px; padding: 12px 14px; border: 1px solid #a2864a; border-radius: 10px; background: #fff8dd; color: #17201c; line-height: 1.45; }
 .page-stack { display: grid; gap: 24px; }
 .hero-card { min-height: 390px; border-radius: 22px; overflow: hidden; position: relative; isolation: isolate; background: linear-gradient(140deg, #506759, #1e3028 65%, #17201c); }
 .hero-card::before { content: ""; position: absolute; inset: 0; background: radial-gradient(circle at 72% 20%, rgba(190, 160, 92, .33), transparent 28%), linear-gradient(150deg, transparent 35%, rgba(8, 14, 11, .72)); z-index: -1; }
@@ -95,6 +97,8 @@ h2 { font-size: 20px; letter-spacing: -.035em; margin-bottom: 6px; }
 .dark .nav-item { color: #a6ada8; }
 .nav-item.active { color: #17201c; background: #f0eee8; font-weight: 700; }
 .dark .nav-item.active { color: #f2f3ef; background: #2b322e; }
+
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; } }
 
 @media (min-width: 768px) {
   .topbar { height: 76px; }

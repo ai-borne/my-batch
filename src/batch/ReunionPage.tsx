@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react'
-import { doc, getDoc } from 'firebase/firestore'
+import { doc, getDoc } from 'firebase/firestore/lite'
 import { httpsCallable } from 'firebase/functions'
 import { firebaseServices } from '../lib/firebase'
 import { PILOT_BATCH_ID } from '../lib/membership'

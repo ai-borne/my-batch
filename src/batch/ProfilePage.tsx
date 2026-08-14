@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react'
-import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore'
+import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore/lite'
 import { firebaseServices } from '../lib/firebase'
 import { PILOT_BATCH_ID } from '../lib/membership'
 import { useAuth } from '../auth/AuthProvider'

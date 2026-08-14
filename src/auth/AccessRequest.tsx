@@ -1,5 +1,5 @@
 import { FormEvent, useState } from 'react'
-import { doc, serverTimestamp, setDoc } from 'firebase/firestore'
+import { doc, serverTimestamp, setDoc } from 'firebase/firestore/lite'
 import { useNavigate } from 'react-router-dom'
 import { firebaseServices } from '../lib/firebase'
 import { PILOT_BATCH_ID } from '../lib/membership'

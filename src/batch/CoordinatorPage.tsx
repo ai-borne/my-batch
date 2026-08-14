@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react'
-import { collection, doc, getDocs, serverTimestamp, setDoc } from 'firebase/firestore'
+import { collection, doc, getDocs, serverTimestamp, setDoc } from 'firebase/firestore/lite'
 import { httpsCallable } from 'firebase/functions'
 import { ref, uploadBytes } from 'firebase/storage'
 import { firebaseServices } from '../lib/firebase'

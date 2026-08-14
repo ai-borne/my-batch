@@ -1,0 +1,13 @@
+{
+  "name": "Ajinkyans 2002",
+  "short_name": "Ajinkyans",
+  "description": "Private reunion app for the Sainik School Satara 2002 batch.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f5f0",
+  "theme_color": "#506759",
+  "icons": [
+    { "src": "/icons/icon-192.svg", "sizes": "192x192", "type": "image/svg+xml", "purpose": "any maskable" },
+    { "src": "/icons/icon-512.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
