@@ -1,5 +1,6 @@
 import { Component, ReactNode, useEffect, useState } from 'react'
 import { COPY } from '../lib/copy'
+import { reportTelemetry } from '../lib/telemetry'
 
 export function OfflineNotice() {
   const [online, setOnline] = useState(() => navigator.onLine)
@@ -17,6 +18,7 @@ type BoundaryState = { failed: boolean }
 export class AppErrorBoundary extends Component<{ children: ReactNode }, BoundaryState> {
   state: BoundaryState = { failed: false }
   static getDerivedStateFromError() { return { failed: true } }
+  componentDidCatch() { void reportTelemetry({ eventCode: 'ui_crash', correlationId: crypto.randomUUID(), surface: 'app' }) }
   render() {
     if (this.state.failed) return <main className="auth-card" role="alert"><h1>Something went wrong</h1><p>Please refresh the app. If this continues, contact a Coordinator.</p></main>
     return this.props.children

@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useRef, useState } from 'react'
-import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore/lite'
+import { collection, doc, getDoc, getDocs, limit, orderBy, query, where } from 'firebase/firestore/lite'
 import { getBlob, ref, uploadBytes } from 'firebase/storage'
 import { httpsCallable } from 'firebase/functions'
 import { firebaseServices } from '../lib/firebase'
@@ -15,7 +15,7 @@ export function FinancePage() {
   const [config, setConfig] = useState<Config>({}); const [summary, setSummary] = useState<Summary>({}); const [expenses, setExpenses] = useState<Expense[]>([]); const [notice, setNotice] = useState(''); const [showQr, setShowQr] = useState(false); const [qrUrl, setQrUrl] = useState('')
   useEffect(() => {
     const db = firebaseServices().db
-    void Promise.all([getDoc(doc(db, `batches/${PILOT_BATCH_ID}/paymentConfig/current`)), getDoc(doc(db, `batches/${PILOT_BATCH_ID}/fundSummary/public`)), getDocs(query(collection(db, `batches/${PILOT_BATCH_ID}/expenses`), where('status', '==', 'approved')))]).then(([payment, fund, expenseDocs]) => {
+    void Promise.all([getDoc(doc(db, `batches/${PILOT_BATCH_ID}/paymentConfig/current`)), getDoc(doc(db, `batches/${PILOT_BATCH_ID}/fundSummary/public`)), getDocs(query(collection(db, `batches/${PILOT_BATCH_ID}/expenses`), where('status', '==', 'approved'), orderBy('expenseDate', 'desc'), limit(25)))]).then(([payment, fund, expenseDocs]) => {
       setConfig(payment.data() ?? {})
       setSummary(fund.data() ?? {})
       setExpenses(expenseDocs.docs.map((item) => ({ id: item.id, ...item.data() } as Expense)))

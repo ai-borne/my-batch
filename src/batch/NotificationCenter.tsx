@@ -12,7 +12,7 @@ export function NotificationCenter() {
   const [open, setOpen] = useState(false)
   const refresh = async () => {
     if (!user) return
-    const snapshots = await getDocs(query(collection(firebaseServices().db, `batches/${PILOT_BATCH_ID}/notifications/${user.uid}/items`), orderBy('createdAt', 'desc'), limit(50)))
+    const snapshots = await getDocs(query(collection(firebaseServices().db, `batches/${PILOT_BATCH_ID}/notifications/${user.uid}/items`), orderBy('createdAt', 'desc'), limit(25)))
     setItems(snapshots.docs.map((item) => ({ id: item.id, ...item.data() } as Notification)))
   }
   useEffect(() => { void refresh() }, [user])

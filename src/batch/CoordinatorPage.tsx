@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react'
-import { addDoc, collection, doc, getDocs, serverTimestamp, setDoc } from 'firebase/firestore/lite'
+import { addDoc, collection, doc, getDocs, limit, orderBy, query, serverTimestamp, setDoc, where } from 'firebase/firestore/lite'
 import { httpsCallable } from 'firebase/functions'
 import { ref, uploadBytes } from 'firebase/storage'
 import { useAuth } from '../auth/AuthProvider'
@@ -22,11 +22,11 @@ export function CoordinatorPage() {
   const [notice, setNotice] = useState('')
   const db = firebaseServices().db
   const refresh = async () => {
-    const [claimDocs, expenseDocs, memberDocs, requestDocs] = await Promise.all([getDocs(collection(db, `batches/${PILOT_BATCH_ID}/paymentClaims`)), getDocs(collection(db, `batches/${PILOT_BATCH_ID}/expenses`)), getDocs(collection(db, `batches/${PILOT_BATCH_ID}/memberships`)), getDocs(collection(db, `batches/${PILOT_BATCH_ID}/accessRequests`))])
+    const [claimDocs, expenseDocs, memberDocs, requestDocs] = await Promise.all([getDocs(query(collection(db, `batches/${PILOT_BATCH_ID}/paymentClaims`), orderBy('submittedAt', 'desc'), limit(25))), getDocs(query(collection(db, `batches/${PILOT_BATCH_ID}/expenses`), orderBy('createdAt', 'desc'), limit(25))), getDocs(query(collection(db, `batches/${PILOT_BATCH_ID}/memberships`), orderBy('updatedAt', 'desc'), limit(25))), getDocs(query(collection(db, `batches/${PILOT_BATCH_ID}/accessRequests`), where('status', '==', 'pending'), limit(25)))])
     setClaims(claimDocs.docs.map((item) => ({ id: item.id, ...item.data() } as Claim)))
     setExpenses(expenseDocs.docs.map((item) => ({ id: item.id, ...item.data() } as Expense)))
     setMembers(memberDocs.docs.map((item) => item.data() as Member))
-    setRequests(requestDocs.docs.filter((item) => item.data().status === 'pending').map((item) => ({ id: item.id, ...item.data() } as AccessRequest)))
+    setRequests(requestDocs.docs.map((item) => ({ id: item.id, ...item.data() } as AccessRequest)))
   }
   useEffect(() => { void refresh() }, [])
   async function manage(memberUid: string, action: string, houseId?: string) { try { await reauthenticate(); await call('manageMembership', { batchId: PILOT_BATCH_ID, memberUid, action, houseId }); await refresh(); setNotice('Membership updated.') } catch (error) { setNotice(error instanceof Error ? error.message : 'Unable to update membership.') } }

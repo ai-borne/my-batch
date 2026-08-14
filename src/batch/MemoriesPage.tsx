@@ -1,11 +1,12 @@
 import { FormEvent, useEffect, useRef, useState } from 'react'
-import { collection, getDocs, orderBy, query, where } from 'firebase/firestore/lite'
+import { collection, doc, getDoc, getDocs, limit, orderBy, query, where } from 'firebase/firestore/lite'
 import { httpsCallable } from 'firebase/functions'
 import { getBlob, ref, uploadBytesResumable, UploadTask } from 'firebase/storage'
 import { useAuth } from '../auth/AuthProvider'
-import { ARCHIVE_CATEGORIES, matchesArchiveView, validateArchiveMedia } from '../lib/archive'
+import { ARCHIVE_CATEGORIES, compressArchiveImage, matchesArchiveView, validateArchiveMedia } from '../lib/archive'
 import type { ArchiveMedia, ArchiveView } from '../lib/archive'
 import { firebaseServices } from '../lib/firebase'
+import { reportTelemetry } from '../lib/telemetry'
 import { PILOT_BATCH_ID } from '../lib/membership'
 
 type Media = ArchiveMedia & { thumbnailPath?: string; posterPath?: string; previewPath?: string }
@@ -27,11 +28,11 @@ export function MemoriesPage() {
   const upload = useRef<UploadTask | null>(null); const pendingPost = useRef<string | null>(null); const pendingPostRequestId = useRef<string | null>(null); const pendingUploads = useRef<PendingUpload[]>([])
   const refresh = async () => {
     const { db, auth } = firebaseServices()
-    const [postDocs, albumDocs] = await Promise.all([getDocs(query(collection(db, `batches/${PILOT_BATCH_ID}/posts`), where('status', '==', 'visible'), orderBy('createdAt', 'desc'))), getDocs(query(collection(db, `batches/${PILOT_BATCH_ID}/albums`), where('status', '==', 'visible')))])
+    const [postDocs, albumDocs] = await Promise.all([getDocs(query(collection(db, `batches/${PILOT_BATCH_ID}/posts`), where('status', '==', 'visible'), orderBy('createdAt', 'desc'), limit(25))), getDocs(query(collection(db, `batches/${PILOT_BATCH_ID}/albums`), where('status', '==', 'visible'), orderBy('createdAt', 'desc'), limit(25)))])
     const nextPosts = postDocs.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Post)); setPosts(nextPosts); setAlbums(albumDocs.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Album)))
-    const details = await Promise.all(nextPosts.map(async (post) => { const [commentDocs, likeDocs] = await Promise.all([getDocs(query(collection(db, `batches/${PILOT_BATCH_ID}/posts/${post.id}/comments`), where('status', '==', 'visible'))), getDocs(collection(db, `batches/${PILOT_BATCH_ID}/posts/${post.id}/likes`))]); return [post.id, commentDocs.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Comment)), likeDocs.docs.some((doc) => doc.id === auth.currentUser?.uid)] as const }))
+    const details = await Promise.all(nextPosts.map(async (post) => { const [commentDocs, likeDoc] = await Promise.all([getDocs(query(collection(db, `batches/${PILOT_BATCH_ID}/posts/${post.id}/comments`), where('status', '==', 'visible'), orderBy('createdAt', 'desc'), limit(25))), auth.currentUser ? getDoc(doc(db, `batches/${PILOT_BATCH_ID}/posts/${post.id}/likes/${auth.currentUser.uid}`)) : Promise.resolve(undefined)]); return [post.id, commentDocs.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Comment)), likeDoc?.exists() ?? false] as const }))
     setComments(Object.fromEntries(details.map(([id, list]) => [id, list]))); setLiked(Object.fromEntries(details.map(([id, , value]) => [id, value])))
-    if (membership?.role === 'coordinator') { const docs = await getDocs(collection(db, `batches/${PILOT_BATCH_ID}/reports`)); setReports(docs.docs.filter((doc) => doc.data().status === 'open').map((doc) => ({ id: doc.id, ...doc.data() } as Report))) }
+    if (membership?.role === 'coordinator') { const docs = await getDocs(query(collection(db, `batches/${PILOT_BATCH_ID}/reports`), where('status', '==', 'open'), orderBy('createdAt', 'desc'), limit(25))); setReports(docs.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Report))) }
   }
   useEffect(() => { void refresh().catch(() => setNotice('Unable to load the private archive.')); return () => { upload.current?.cancel() } }, [membership?.role])
   async function call(name: string, data: Record<string, unknown>, success: string) { try { await httpsCallable(firebaseServices().functions, name)({ batchId: PILOT_BATCH_ID, requestId: crypto.randomUUID(), ...data }); setNotice(success); await refresh() } catch (error) { setNotice(error instanceof Error ? error.message : 'Archive action failed.') } }
@@ -39,14 +40,14 @@ export function MemoriesPage() {
     event.preventDefault(); const formElement = event.currentTarget; const form = new FormData(formElement); const files = (form.getAll('media') as File[]).filter((file) => file.size)
     try {
       if (!pendingPost.current) {
-        const selected = await Promise.all(files.map(async (file) => ({ file, duration: await videoDuration(file) }))); selected.forEach(({ file, duration }) => validateArchiveMedia(file, duration))
+        const selected = await Promise.all(files.map(async (file) => { const compressed = await compressArchiveImage(file); return { file: compressed, duration: await videoDuration(compressed) } })); selected.forEach(({ file, duration }) => validateArchiveMedia(file, duration))
         pendingPostRequestId.current ??= crypto.randomUUID()
         const post = await httpsCallable<Record<string, unknown>, { postId: string }>(firebaseServices().functions, 'createPost')({ batchId: PILOT_BATCH_ID, requestId: pendingPostRequestId.current, caption: form.get('caption'), albumId: form.get('albumId') || undefined, peopleTags: String(form.get('peopleTags') ?? '').split(',').map((tag) => tag.trim()).filter(Boolean), year: form.get('year') ? Number(form.get('year')) : undefined, category: form.get('category') || undefined, consentConfirmed: form.get('consent') === 'on' })
         pendingPost.current = post.data.postId; pendingUploads.current = selected.map(({ file, duration }) => ({ file, duration, path: `batches/${PILOT_BATCH_ID}/posts/${post.data.postId}/media/${crypto.randomUUID()}-${file.name}` }))
       }
       for (const item of [...pendingUploads.current]) { const task = uploadBytesResumable(ref(firebaseServices().storage, item.path), item.file, { contentType: item.file.type }); upload.current = task; await new Promise<void>((resolve, reject) => task.on('state_changed', (snap) => setProgress(Math.round(snap.bytesTransferred / snap.totalBytes * 100)), reject, resolve)); await httpsCallable(firebaseServices().functions, 'addArchiveMedia')({ batchId: PILOT_BATCH_ID, contentType: 'post', contentId: pendingPost.current, storagePath: item.path, mimeType: item.file.type, size: item.file.size, durationSeconds: item.duration }); pendingUploads.current = pendingUploads.current.filter((pending) => pending.path !== item.path) }
       pendingPost.current = null; pendingPostRequestId.current = null; formElement.reset(); setRetry(null); setNotice('Memory published to the private batch archive.'); await refresh()
-    } catch (error) { setRetry(() => () => void publish({ currentTarget: formElement, preventDefault() {} } as FormEvent<HTMLFormElement>)); setNotice(navigator.onLine ? (error instanceof Error ? error.message : 'Upload interrupted. Retry or cancel it.') : 'Upload paused while offline. Reconnect, then retry or cancel it.') } finally { upload.current = null; setProgress(null) }
+    } catch (error) { void reportTelemetry({ eventCode: 'upload_failed', correlationId: crypto.randomUUID(), surface: 'archive' }); setRetry(() => () => void publish({ currentTarget: formElement, preventDefault() {} } as FormEvent<HTMLFormElement>)); setNotice(navigator.onLine ? (error instanceof Error ? error.message : 'Upload interrupted. Retry or cancel it.') : 'Upload paused while offline. Reconnect, then retry or cancel it.') } finally { upload.current = null; setProgress(null) }
   }
   const editPost = (post: Post) => { const caption = window.prompt('Caption', post.caption ?? ''); if (caption !== null) void call('updateOwnPost', { postId: post.id, caption, peopleTags: post.peopleTags ?? [], year: post.year, category: post.category }, 'Memory updated.') }
   const editAlbum = (album: Album) => { const title = window.prompt('Album title', album.title); if (title === null) return; const description = window.prompt('Album description', album.description ?? ''); if (description !== null) void call('manageAlbum', { albumId: album.id, action: 'update', title, description }, 'Album updated.') }

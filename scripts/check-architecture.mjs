@@ -22,6 +22,7 @@ for (const file of files) {
   const lines = content.split('\n').length - (content.endsWith('\n') ? 1 : 0)
   if (lines > 300) failures.push(`${file} has ${lines} lines (maximum is 300).`)
   if (file !== 'src/styles/tokens.css' && /#[0-9a-fA-F]{3,8}\b|rgba?\(/.test(content)) failures.push(`${file} contains a hard-coded color literal.`)
+  if (file.startsWith('src/') && /getDocs\(collection\(/.test(content)) failures.push(`${file} reads a private collection without a bounded query.`)
 }
 if (failures.length) throw new Error(failures.join('\n'))
 console.log(`Architecture checks passed for ${files.length} source files.`)

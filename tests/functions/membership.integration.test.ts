@@ -191,3 +191,14 @@ describe('GS-1 callable integrity and abuse controls', () => {
     await expect(coordinator.call('reviewPaymentClaim', { batchId, claimId: first.data.claimId, status: 'rejected' })).rejects.toMatchObject({ code: 'functions/failed-precondition' })
   })
 })
+
+describe('GS-2 operational telemetry', () => {
+  it('accepts only correlation-only telemetry and stores no user-entered diagnostic data', async () => {
+    const member = await signIn('gs2-telemetry@example.test'); const uid = member.auth.currentUser!.uid
+    await adminDb.doc(`batches/${batchId}/memberships/${uid}`).set({ uid, status: 'active', role: 'batchmate' })
+    await member.call('recordTelemetry', { batchId, eventCode: 'upload_failed', correlationId: 'safe-id-123', surface: 'archive' })
+    const event = (await adminDb.collection(`batches/${batchId}/telemetryEvents`).get()).docs[0].data()
+    expect(event).toMatchObject({ eventCode: 'upload_failed', correlationId: 'safe-id-123', surface: 'archive' })
+    await expect(member.call('recordTelemetry', { batchId, eventCode: 'upload_failed', correlationId: 'safe-id-123', surface: 'archive', message: 'do not persist this' })).rejects.toMatchObject({ code: 'functions/invalid-argument' })
+  })
+})

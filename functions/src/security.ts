@@ -21,6 +21,7 @@ export const callablePolicies = {
   rebuildFundSummary: { limit: 3, windowSeconds: 600, rationale: 'summary rebuild reads financial records' },
   rejectMembership: { limit: 5, windowSeconds: 600, rationale: 'membership changes are material' },
   reopenRsvp: { limit: 10, windowSeconds: 600, rationale: 'Coordinator RSVP override' },
+  recordTelemetry: { limit: 20, windowSeconds: 600, rationale: 'limits operational telemetry ingestion' },
   reportArchiveContent: { limit: 10, windowSeconds: 600, rationale: 'report spam control' },
   requestProfileDataChange: { limit: 3, windowSeconds: 3600, rationale: 'privacy request intake control' },
   reviewExpense: { limit: 10, windowSeconds: 600, rationale: 'financial approval is material' },

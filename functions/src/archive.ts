@@ -1,12 +1,15 @@
-import { FieldValue } from 'firebase-admin/firestore'
+import { FieldValue, Timestamp } from 'firebase-admin/firestore'
 import { getStorage } from 'firebase-admin/storage'
 import { HttpsError } from 'firebase-functions/v2/https'
+import { onSchedule } from 'firebase-functions/v2/scheduler'
 import sharp from 'sharp'
 import { db, requireActiveMember, requireBatchId, requireCoordinator, requireIdempotencyKey, requireUid } from './shared.js'
 import { notify } from './notifications.js'
 import { limitCallable, secureCall } from './security.js'
 
 const mediaTypes = new Set(['image/jpeg', 'image/png', 'image/heic', 'image/webp', 'video/mp4', 'video/quicktime'])
+const archiveRetentionUntil = new Date('2034-01-08T00:00:00.000Z')
+const maxMediaPerItem = 20
 const reportCategories = new Set(['harassment', 'sexualContent', 'privacy', 'financialInformation', 'fraud', 'spam', 'rights', 'other'])
 const archiveCategories = new Set(['school', 'sports', 'nda', 'mess', 'teachers', 'trips', 'pranks', 'houses', 'passingOut', 'other'])
 function text(value: unknown, field: string, max: number, required = true) {
@@ -24,6 +27,8 @@ function mediaPath(batchId: string, type: 'posts' | 'albums', id: string, path: 
 function derivativePaths(path: string) { return { thumbnailPath: `${path}.thumb.webp`, posterPath: `${path}.poster.webp` } }
 async function createImageThumbnail(path: string, thumbnailPath: string) {
   const bucket = getStorage().bucket(); const [source] = await bucket.file(path).download()
+  const sourceMetadata = await sharp(source, { limitInputPixels: 40_000_000 }).metadata()
+  if (!sourceMetadata.width || !sourceMetadata.height || sourceMetadata.width > 8_000 || sourceMetadata.height > 8_000) throw new HttpsError('invalid-argument', 'Image dimensions exceed the permitted limit.')
   const thumbnail = await sharp(source, { limitInputPixels: 40_000_000 }).rotate().resize({ width: 640, height: 640, fit: 'inside', withoutEnlargement: true }).webp({ quality: 78 }).toBuffer()
   await bucket.file(thumbnailPath).save(thumbnail, { contentType: 'image/webp', resumable: false, metadata: { cacheControl: 'private, max-age=3600' } })
 }
@@ -77,7 +82,7 @@ export const createPost = secureCall(async (request) => {
       if (existing.data()?.authorUid !== uid) throw new HttpsError('already-exists', 'A request with this key already exists.')
       return
     }
-    transaction.create(ref, { batchId, authorUid: uid, ...(postCaption ? { caption: postCaption } : {}), ...(typeof selectedAlbumId === 'string' ? { albumId: selectedAlbumId } : {}), ...metadata(request.data as Record<string, unknown>), status: 'visible', media: [], createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() })
+    transaction.create(ref, { batchId, authorUid: uid, ...(postCaption ? { caption: postCaption } : {}), ...(typeof selectedAlbumId === 'string' ? { albumId: selectedAlbumId } : {}), ...metadata(request.data as Record<string, unknown>), status: 'visible', media: [], retentionUntil: archiveRetentionUntil, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() })
   })
   return { postId: ref.id }
 })
@@ -95,7 +100,7 @@ export const createAlbum = secureCall(async (request) => {
       if (existing.data()?.authorUid !== uid) throw new HttpsError('already-exists', 'A request with this key already exists.')
       return
     }
-    transaction.create(ref, { batchId, authorUid: uid, title: text(title, 'title', 120), ...(albumDescription ? { description: albumDescription } : {}), status: 'visible', media: [], createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() })
+    transaction.create(ref, { batchId, authorUid: uid, title: text(title, 'title', 120), ...(albumDescription ? { description: albumDescription } : {}), status: 'visible', media: [], retentionUntil: archiveRetentionUntil, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() })
   })
   return { albumId: ref.id }
 })
@@ -118,7 +123,13 @@ export const addArchiveMedia = secureCall(async (request) => {
   const derivatives = derivativePaths(path)
   if (image) await createImageThumbnail(path, derivatives.thumbnailPath); else await createVideoPoster(path, derivatives.posterPath)
   const media = { path, mimeType, size, uploadState: 'verified', ...(image ? { thumbnailPath: derivatives.thumbnailPath } : { durationSeconds: Number(durationSeconds), posterPath: derivatives.posterPath, previewPath: path }) }
-  await ref.update({ media: FieldValue.arrayUnion(media), updatedAt: FieldValue.serverTimestamp() })
+  try { await db.runTransaction(async (transaction) => {
+    const latest = await transaction.get(ref); const existingMedia = latest.data()?.media ?? []
+    if (existingMedia.some((existing: { path?: string }) => existing.path === path)) return
+    if (!latest.exists || latest.data()?.authorUid !== uid || latest.data()?.status !== 'visible') throw new HttpsError('permission-denied', 'You cannot add media to this content.')
+    if (existingMedia.length >= maxMediaPerItem) throw new HttpsError('failed-precondition', 'This post or album already has the maximum number of media items.')
+    transaction.update(ref, { media: FieldValue.arrayUnion(media), updatedAt: FieldValue.serverTimestamp() })
+  }) } catch (error) { await getStorage().bucket().deleteFiles({ prefix: path }); throw error }
   await audit(batchId, uid, 'archive.media.verified', contentId)
   return { added: true }
 })
@@ -228,16 +239,35 @@ export const cleanupArchiveOrphans = secureCall(async (request) => {
   const { batchId } = request.data as Record<string, unknown>
   requireBatchId(batchId); const uid = requireUid(request.auth); await requireCoordinator(batchId, request.auth)
   await limitCallable(batchId, uid, 'cleanupArchiveOrphans')
-  const [posts, albums, files] = await Promise.all([db.collection(`batches/${batchId}/posts`).get(), db.collection(`batches/${batchId}/albums`).get(), getStorage().bucket().getFiles({ prefix: `batches/${batchId}/` })])
-  const referenced = new Set([...posts.docs, ...albums.docs].flatMap((doc) => (doc.data().status === 'visible' ? (doc.data().media ?? []).map((media: { path?: string }) => media.path) : [])).filter((path): path is string => typeof path === 'string'))
+  const [files] = await getStorage().bucket().getFiles({ prefix: `batches/${batchId}/`, maxResults: 100 })
+  const contentCache = new Map<string, Array<{ path?: string }>>()
   const now = Date.now(); let deleted = 0
-  for (const file of files[0]) {
-    if (!file.name.includes('/media/') || referenced.has(file.name)) continue
+  for (const file of files) {
+    const match = file.name.match(new RegExp(`^batches/${batchId}/(posts|albums)/([^/]+)/media/`))
+    if (!match) continue
+    const contentPath = `batches/${batchId}/${match[1]}/${match[2]}`
+    let media = contentCache.get(contentPath)
+    if (!media) { const content = await db.doc(contentPath).get(); media = (content.data()?.status === 'visible' ? content.data()?.media ?? [] : []) as Array<{ path?: string }>; contentCache.set(contentPath, media) }
+    if (media.some((item) => typeof item.path === 'string' && (file.name === item.path || file.name.startsWith(`${item.path}.`)))) continue
     const [metadata] = await file.getMetadata(); const created = Date.parse(String(metadata.timeCreated ?? ''))
     if (Number.isFinite(created) && now - created >= 24 * 60 * 60 * 1000) { await file.delete(); deleted += 1 }
   }
   await audit(batchId, uid, 'archive.orphans.cleaned')
   return { deleted }
+})
+
+async function expireArchiveCollection(collectionName: 'posts' | 'albums') {
+  const expired = await db.collectionGroup(collectionName).where('retentionUntil', '<=', Timestamp.now()).limit(25).get()
+  await Promise.all(expired.docs.map(async (item) => {
+    await getStorage().bucket().deleteFiles({ prefix: `${item.ref.path}/media/` })
+    await item.ref.update({ status: 'removed', removedAt: FieldValue.serverTimestamp(), removalReason: 'retention-expired', updatedAt: FieldValue.serverTimestamp() })
+  }))
+  return expired.size
+}
+
+export const executeArchiveRetention = onSchedule('every day 03:00', async () => {
+  const [posts, albums] = await Promise.all([expireArchiveCollection('posts'), expireArchiveCollection('albums')])
+  console.info('Archive retention complete', { posts, albums })
 })
 
 export const moderateArchiveContent = secureCall(async (request) => {

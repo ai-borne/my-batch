@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { firebaseServices } from '../lib/firebase'
 import { PILOT_BATCH_ID } from '../lib/membership'
 import { aggregateHomeStats, countdownLabel, HOME_TIMELINE, type HomeMembership, type HomeProfile } from '../lib/home'
+import { PAGE_SIZE } from '../lib/pagination'
 
 type TimestampValue = { toDate: () => Date }
 type HomePost = { id: string; caption?: string; authorName?: string; createdAt?: TimestampValue }
@@ -30,8 +31,8 @@ export function HomePage() {
         const db = firebaseServices().db
         const [batch, memberships, profiles, posts] = await Promise.all([
           getDoc(doc(db, `batches/${PILOT_BATCH_ID}`)),
-          getDocs(collection(db, `batches/${PILOT_BATCH_ID}/memberships`)),
-          getDocs(collection(db, `batches/${PILOT_BATCH_ID}/profiles`)),
+          getDocs(query(collection(db, `batches/${PILOT_BATCH_ID}/memberships`), limit(PAGE_SIZE))),
+          getDocs(query(collection(db, `batches/${PILOT_BATCH_ID}/profiles`), limit(PAGE_SIZE))),
           getDocs(query(collection(db, `batches/${PILOT_BATCH_ID}/posts`), where('status', '==', 'visible'), orderBy('createdAt', 'desc'), limit(5))),
         ])
         if (!active) return
