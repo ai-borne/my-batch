@@ -15,6 +15,7 @@ These answers came from the pilot owner and should guide the MVP. Items marked `
 
 - [x] **Product owner:** the pilot owner is the person maintaining this checklist.
 - [~] **Role assignment:** the Super Admin adds a Batch Coordinator Gmail ID, which grants that person Coordinator access. Super Admin account details will be configured privately later.
+- [x] **Coordinator setup:** the Super Admin adds Coordinator Gmail IDs from the Super Admin account. Coordinators receive access after signing in with Google.
 - [x] **Reunion timing:** 06–08 January 2027; the detailed daily schedule remains open.
 - [x] **Reunion location:** Sainik School Satara, India; the final venue logistics and map details remain open.
 - [x] **Timezone:** India Standard Time (`Asia/Kolkata`).
@@ -33,6 +34,13 @@ These answers came from the pilot owner and should guide the MVP. Items marked `
 - [x] **Member support:** members contact Coordinators personally through WhatsApp. No support inbox or private messaging is included in the website MVP.
 - [x] **Visibility:** member profiles, RSVP details, and approved expenses/receipts are visible to approved batch members. Individual payment status, UTRs, and screenshots are restricted to Coordinators; batch members see aggregate payment progress only.
 - [x] **Pilot roles:** the pilot uses Super Admin and Coordinator roles only. There are no Treasurer or Content Moderator permissions in this MVP.
+- [x] **Coordinator-managed operations:** Coordinators configure the schedule, venue logistics, UPI/payment instructions, and related reunion details from their accounts.
+- [x] **Contribution timing:** the final family contribution is calculated after users submit RSVP details and Coordinators confirm the RSVP strength before the cutoff.
+- [x] **Membership approval:** a user signs in with Google, submits a batch access request, and a Coordinator approves the user’s membership before private content is available.
+- [~] **Privacy and safety:** use leading social-product standards as the baseline; concrete consent, retention, takedown, and moderation rules still need to be written.
+- [~] **Coordinator approval scope:** Coordinator approval is required, but the exact objects requiring approval must be specified.
+- [x] **Firebase ownership:** the Firebase project is owned and administered by the Super Admin.
+- [x] **Pilot success timing:** pilot success is evaluated after the Ajinkyans 2002 reunion.
 - [x] **Identifiers:** use an immutable batch ID such as `batch-2002-3711`; store `schoolId: "3711"` and `passingYear: 2002` separately.
 - [x] **Upload limits:** photos up to 20 MB; videos up to 250 MB and 5 minutes; JPG, PNG, HEIC, WebP, MP4, and MOV.
 
@@ -46,6 +54,11 @@ These answers came from the pilot owner and should guide the MVP. Items marked `
 - [x] Use personal WhatsApp contact with Coordinators for member support; publish coordinator contact details separately from the website messaging features.
 - [x] Define RSVP editing: Coordinators set the cutoff and may reopen an individual RSVP.
 - [x] Define payment status states: Unpaid, Submitted, Under Review, Verified, Rejected.
+- [x] Confirm that Coordinators configure reunion schedule, venue logistics, UPI/payment instructions, and other operational details from their accounts.
+- [x] Confirm that the Super Admin owns the Firebase project and production administration.
+- [x] Confirm that pilot success is assessed after the 2002 batch reunion.
+- [ ] Define concrete privacy, consent, retention, takedown, and moderation rules based on the agreed high-standard baseline.
+- [ ] Clarify what content or records require explicit Coordinator approval before publication.
 
 ## 1. Pilot identity and scope
 
@@ -53,7 +66,7 @@ These answers came from the pilot owner and should guide the MVP. Items marked `
 - [x] Confirm the pilot launch/reunion date and timezone: 06–08 January 2027, `Asia/Kolkata`.
 - [x] Confirm the pilot venue and whether directions/accommodation information is ready: Sainik School Satara confirmed; logistics details remain open.
 - [x] Confirm the initial member invitation and approval process: access requests are manually approved.
-- [ ] Define the pilot success criteria (for example: approved members, RSVP completion, memories uploaded, and payment reconciliation).
+- [~] Define the pilot success criteria: success is evaluated after the Ajinkyans 2002 reunion; exact measures and thresholds remain open.
 - [ ] Explicitly list what is out of MVP scope: direct messaging, payment gateway/platform-held funds, automated vendor payouts, AI organisation, and other future ideas.
 - [x] Decide whether video uploads are included in the first pilot or enabled after the photo archive is stable: photos and videos are included.
 
@@ -71,7 +84,7 @@ These answers came from the pilot owner and should guide the MVP. Items marked `
 
 - [ ] Confirm Google OAuth as the only sign-in method for MVP.
 - [ ] Define the access-request fields: name, house, passing year, and any additional verification field.
-- [ ] Define how coordinators verify that an access request belongs to the batch.
+- [x] Define how Coordinators verify that an access request belongs to the batch: the Super Admin assigns Coordinators by Gmail ID, and Coordinators approve signed-in users’ membership requests.
 - [ ] Define the membership states and transitions: requested, pending, active, suspended, removed.
 - [ ] Confirm the six pilot houses and their Junior/Senior grouping.
 - [ ] Decide whether a member may belong to more than one batch in the platform model.
@@ -131,7 +144,7 @@ These answers came from the pilot owner and should guide the MVP. Items marked `
 
 ## 8. Privacy, security, and compliance
 
-- [ ] Approve the privacy notice and consent language for profiles, photos/videos, RSVP, and payment evidence.
+- [~] Approve the privacy notice and consent language for profiles, photos/videos, RSVP, and payment evidence using leading social-product standards; exact text remains open.
 - [ ] Confirm that private batch data is excluded from public indexing and unauthenticated reads.
 - [ ] Define retention/deletion periods for inactive accounts, reports, payment evidence, and removed media.
 - [ ] Define the process for a member requesting correction or removal of personal data.
