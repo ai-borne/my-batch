@@ -1,10 +1,12 @@
 import { FieldValue } from 'firebase-admin/firestore'
 import { getStorage } from 'firebase-admin/storage'
 import { HttpsError, onCall } from 'firebase-functions/v2/https'
+import sharp from 'sharp'
 import { db, requireActiveMember, requireBatchId, requireCoordinator, requireUid } from './shared.js'
 
 const mediaTypes = new Set(['image/jpeg', 'image/png', 'image/heic', 'image/webp', 'video/mp4', 'video/quicktime'])
 const reportCategories = new Set(['harassment', 'sexualContent', 'privacy', 'financialInformation', 'fraud', 'spam', 'rights', 'other'])
+const archiveCategories = new Set(['school', 'sports', 'nda', 'mess', 'teachers', 'trips', 'pranks', 'houses', 'passingOut', 'other'])
 function text(value: unknown, field: string, max: number, required = true) {
   if (value === undefined && !required) return undefined
   if (typeof value !== 'string' || (required && !value.trim()) || value.trim().length > max) throw new HttpsError('invalid-argument', `${field} is invalid.`)
@@ -17,17 +19,56 @@ function mediaPath(batchId: string, type: 'posts' | 'albums', id: string, path: 
   if (typeof path !== 'string' || !path.startsWith(`batches/${batchId}/${type}/${id}/media/`)) throw new HttpsError('invalid-argument', 'The media path is invalid.')
   return path
 }
+function derivativePaths(path: string) { return { thumbnailPath: `${path}.thumb.webp`, posterPath: `${path}.poster.webp` } }
+async function createImageThumbnail(path: string, thumbnailPath: string) {
+  const bucket = getStorage().bucket(); const [source] = await bucket.file(path).download()
+  const thumbnail = await sharp(source, { limitInputPixels: 40_000_000 }).rotate().resize({ width: 640, height: 640, fit: 'inside', withoutEnlargement: true }).webp({ quality: 78 }).toBuffer()
+  await bucket.file(thumbnailPath).save(thumbnail, { contentType: 'image/webp', resumable: false, metadata: { cacheControl: 'private, max-age=3600' } })
+}
+async function createVideoPoster(path: string, posterPath: string) {
+  const label = path.split('/').at(-1)?.replace(/[<>&]/g, '') ?? 'Video'
+  const svg = `<svg width="640" height="360" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%"/><circle cx="320" cy="180" r="52"/><path d="M300 145v70l58-35z"/><text x="320" y="300" text-anchor="middle" font-family="sans-serif" font-size="20">${label}</text></svg>`
+  const poster = await sharp(Buffer.from(svg)).webp({ quality: 78 }).toBuffer()
+  await getStorage().bucket().file(posterPath).save(poster, { contentType: 'image/webp', resumable: false, metadata: { cacheControl: 'private, max-age=3600' } })
+}
+async function verifyMediaBytes(path: string, mimeType: string) {
+  const [bytes] = await getStorage().bucket().file(path).download({ start: 0, end: 31 })
+  const textBytes = bytes.toString('ascii')
+  const jpeg = bytes.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff])); const png = bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])); const riff = textBytes.startsWith('RIFF'); const ftyp = textBytes.includes('ftyp')
+  const valid = mimeType === 'image/jpeg' ? jpeg : mimeType === 'image/png' ? png : mimeType === 'image/webp' ? riff && textBytes.includes('WEBP') : mimeType === 'image/heic' || mimeType.startsWith('video/') ? ftyp : false
+  if (!valid) throw new HttpsError('failed-precondition', 'Uploaded bytes do not match the declared media type.')
+}
+function tags(value: unknown) {
+  if (value === undefined) return undefined
+  if (!Array.isArray(value) || value.length > 20 || value.some((tag) => typeof tag !== 'string' || !tag.trim() || tag.trim().length > 100)) throw new HttpsError('invalid-argument', 'People tags are invalid.')
+  return [...new Set(value.map((tag) => tag.trim()))]
+}
+function year(value: unknown) {
+  if (value === undefined || value === null || value === '') return undefined
+  if (!Number.isInteger(value) || Number(value) < 1900 || Number(value) > new Date().getFullYear()) throw new HttpsError('invalid-argument', 'Year is invalid.')
+  return Number(value)
+}
+function category(value: unknown) {
+  if (value === undefined || value === null || value === '') return undefined
+  if (typeof value !== 'string' || !archiveCategories.has(value)) throw new HttpsError('invalid-argument', 'Category is invalid.')
+  return value
+}
+function metadata(data: Record<string, unknown>) {
+  const peopleTags = tags(data.peopleTags); const memoryYear = year(data.year); const memoryCategory = category(data.category)
+  return { ...(peopleTags ? { peopleTags } : {}), ...(memoryYear ? { year: memoryYear } : {}), ...(memoryCategory ? { category: memoryCategory } : {}) }
+}
 
 export const createPost = onCall(async (request) => {
   const { batchId, caption, albumId, consentConfirmed } = request.data as Record<string, unknown>
   requireBatchId(batchId); const uid = requireUid(request.auth); await requireActiveMember(batchId, uid)
   if (consentConfirmed !== true) throw new HttpsError('failed-precondition', 'Content consent must be confirmed.')
   const postCaption = text(caption, 'caption', 2_000, false)
-  if (albumId !== undefined) {
-    if (typeof albumId !== 'string' || !(await db.doc(`batches/${batchId}/albums/${albumId}`).get()).exists) throw new HttpsError('not-found', 'Album was not found.')
+  const selectedAlbumId = albumId === undefined || albumId === null || albumId === '' ? undefined : albumId
+  if (selectedAlbumId !== undefined) {
+    if (typeof selectedAlbumId !== 'string' || !(await db.doc(`batches/${batchId}/albums/${selectedAlbumId}`).get()).exists) throw new HttpsError('not-found', 'Album was not found.')
   }
   const ref = db.collection(`batches/${batchId}/posts`).doc()
-  await ref.create({ batchId, authorUid: uid, ...(postCaption ? { caption: postCaption } : {}), ...(typeof albumId === 'string' ? { albumId } : {}), status: 'visible', media: [], createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() })
+  await ref.create({ batchId, authorUid: uid, ...(postCaption ? { caption: postCaption } : {}), ...(typeof selectedAlbumId === 'string' ? { albumId: selectedAlbumId } : {}), ...metadata(request.data as Record<string, unknown>), status: 'visible', media: [], createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() })
   return { postId: ref.id }
 })
 
@@ -51,8 +92,41 @@ export const addArchiveMedia = onCall(async (request) => {
   const collection = contentType === 'post' ? 'posts' : 'albums'; const ref = db.doc(`batches/${batchId}/${collection}/${contentId}`); const content = await ref.get()
   if (!content.exists || content.data()?.authorUid !== uid || content.data()?.status !== 'visible') throw new HttpsError('permission-denied', 'You cannot add media to this content.')
   const path = mediaPath(batchId, collection, contentId, storagePath)
-  await ref.update({ media: FieldValue.arrayUnion({ path, mimeType, size, ...(image ? {} : { durationSeconds: Number(durationSeconds) }) }), updatedAt: FieldValue.serverTimestamp() })
+  const [objectMetadata] = await getStorage().bucket().file(path).getMetadata().catch(() => { throw new HttpsError('failed-precondition', 'Upload was not found.') })
+  if (objectMetadata.contentType !== mimeType || Number(objectMetadata.size) !== Number(size)) throw new HttpsError('failed-precondition', 'Uploaded media does not match the submitted metadata.')
+  await verifyMediaBytes(path, String(mimeType))
+  const derivatives = derivativePaths(path)
+  if (image) await createImageThumbnail(path, derivatives.thumbnailPath); else await createVideoPoster(path, derivatives.posterPath)
+  const media = { path, mimeType, size, uploadState: 'verified', ...(image ? { thumbnailPath: derivatives.thumbnailPath } : { durationSeconds: Number(durationSeconds), posterPath: derivatives.posterPath, previewPath: path }) }
+  await ref.update({ media: FieldValue.arrayUnion(media), updatedAt: FieldValue.serverTimestamp() })
+  await audit(batchId, uid, 'archive.media.verified', contentId)
   return { added: true }
+})
+
+export const updateOwnPost = onCall(async (request) => {
+  const { batchId, postId, caption, albumId } = request.data as Record<string, unknown>
+  requireBatchId(batchId); const uid = requireUid(request.auth); await requireActiveMember(batchId, uid)
+  if (typeof postId !== 'string') throw new HttpsError('invalid-argument', 'postId is required.')
+  const ref = db.doc(`batches/${batchId}/posts/${postId}`); const post = await ref.get()
+  if (!post.exists || post.data()?.authorUid !== uid || post.data()?.status !== 'visible') throw new HttpsError('permission-denied', 'You can edit only your visible posts.')
+  const nextCaption = text(caption, 'caption', 2_000, false)
+  const selectedAlbumId = albumId === undefined || albumId === null || albumId === '' ? undefined : albumId
+  if (selectedAlbumId !== undefined && (typeof selectedAlbumId !== 'string' || !(await db.doc(`batches/${batchId}/albums/${selectedAlbumId}`).get()).exists)) throw new HttpsError('not-found', 'Album was not found.')
+  await ref.update({ ...(nextCaption ? { caption: nextCaption } : { caption: FieldValue.delete() }), ...(typeof selectedAlbumId === 'string' ? { albumId: selectedAlbumId } : { albumId: FieldValue.delete() }), ...metadata(request.data as Record<string, unknown>), updatedAt: FieldValue.serverTimestamp() })
+  await audit(batchId, uid, 'archive.post.updated', postId)
+  return { updated: true }
+})
+
+export const manageAlbum = onCall(async (request) => {
+  const { batchId, albumId, action, title, description } = request.data as Record<string, unknown>
+  requireBatchId(batchId); const uid = requireUid(request.auth); await requireActiveMember(batchId, uid)
+  if (typeof albumId !== 'string' || !['update', 'remove'].includes(String(action))) throw new HttpsError('invalid-argument', 'Album details are invalid.')
+  const ref = db.doc(`batches/${batchId}/albums/${albumId}`); const album = await ref.get(); const membership = await db.doc(`batches/${batchId}/memberships/${uid}`).get()
+  if (!album.exists || (album.data()?.authorUid !== uid && membership.data()?.role !== 'coordinator')) throw new HttpsError('permission-denied', 'Only the album owner or a Coordinator can manage this album.')
+  if (action === 'remove') { await ref.update({ status: 'removed', removedBy: uid, removedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() }); await getStorage().bucket().deleteFiles({ prefix: `batches/${batchId}/albums/${albumId}/media/` }) }
+  else await ref.update({ title: text(title, 'title', 120), ...(text(description, 'description', 1_000, false) ? { description: text(description, 'description', 1_000, false) } : { description: FieldValue.delete() }), updatedAt: FieldValue.serverTimestamp() })
+  await audit(batchId, uid, `archive.album.${action}`, albumId)
+  return { managed: true }
 })
 
 export const saveArchiveComment = onCall(async (request) => {
@@ -96,6 +170,32 @@ export const deleteOwnPost = onCall(async (request) => {
   await getStorage().bucket().deleteFiles({ prefix: `batches/${batchId}/posts/${postId}/media/` })
   await audit(batchId, uid, 'archive.post.deleted', postId)
   return { deleted: true }
+})
+
+export const deleteOwnComment = onCall(async (request) => {
+  const { batchId, postId, commentId } = request.data as Record<string, unknown>
+  requireBatchId(batchId); const uid = requireUid(request.auth); await requireActiveMember(batchId, uid)
+  if (typeof postId !== 'string' || typeof commentId !== 'string') throw new HttpsError('invalid-argument', 'Comment details are invalid.')
+  const ref = db.doc(`batches/${batchId}/posts/${postId}/comments/${commentId}`); const comment = await ref.get()
+  if (!comment.exists || comment.data()?.authorUid !== uid) throw new HttpsError('permission-denied', 'You can delete only your own comment.')
+  await ref.update({ status: 'removed', removedBy: uid, removedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() })
+  await audit(batchId, uid, 'archive.comment.deleted', commentId)
+  return { deleted: true }
+})
+
+export const cleanupArchiveOrphans = onCall(async (request) => {
+  const { batchId } = request.data as Record<string, unknown>
+  requireBatchId(batchId); const uid = requireUid(request.auth); await requireCoordinator(batchId, request.auth)
+  const [posts, albums, files] = await Promise.all([db.collection(`batches/${batchId}/posts`).get(), db.collection(`batches/${batchId}/albums`).get(), getStorage().bucket().getFiles({ prefix: `batches/${batchId}/` })])
+  const referenced = new Set([...posts.docs, ...albums.docs].flatMap((doc) => (doc.data().status === 'visible' ? (doc.data().media ?? []).map((media: { path?: string }) => media.path) : [])).filter((path): path is string => typeof path === 'string'))
+  const now = Date.now(); let deleted = 0
+  for (const file of files[0]) {
+    if (!file.name.includes('/media/') || referenced.has(file.name)) continue
+    const [metadata] = await file.getMetadata(); const created = Date.parse(String(metadata.timeCreated ?? ''))
+    if (Number.isFinite(created) && now - created >= 24 * 60 * 60 * 1000) { await file.delete(); deleted += 1 }
+  }
+  await audit(batchId, uid, 'archive.orphans.cleaned')
+  return { deleted }
 })
 
 export const moderateArchiveContent = onCall(async (request) => {

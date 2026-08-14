@@ -61,3 +61,23 @@ test('a member can submit, have a payment rejected, and submit a corrected claim
   await page.getByLabel('Amount paid (₹)').fill('30000'); await page.getByLabel('UTR / transaction ID').fill('UTR-PLAYWRIGHT-2'); await page.getByLabel('Payment date').fill('2027-01-06')
   await page.getByRole('button', { name: 'Submit for review' }).click(); await expect(page.getByRole('status')).toContainText('submitted')
 })
+
+test('members can comment and report a memory, then a Coordinator moderates it', async ({ page }) => {
+  await signIn(page, 'member@example.test'); await page.goto('/memories')
+  await expect(page.getByText('Archive test memory')).toBeVisible()
+  await page.getByLabel('Comment').fill('Great memory'); await page.getByRole('button', { name: 'Comment' }).click()
+  await expect(page.getByRole('status')).toContainText('Comment added')
+  await page.getByRole('button', { name: 'Report' }).click(); await expect(page.getByRole('status')).toContainText('Report sent')
+  await page.getByRole('button', { name: 'Sign out' }).click(); await signIn(page, 'coordinator@example.test'); await page.goto('/memories')
+  await expect(page.getByText('Open moderation reports')).toBeVisible(); await page.getByRole('button', { name: 'Hide' }).click()
+  await expect(page.getByRole('status')).toContainText('hidden')
+})
+
+test('a member uploads an image memory that becomes visible in the private archive', async ({ page }) => {
+  await signIn(page, 'member@example.test'); await page.goto('/memories')
+  await page.getByLabel('Caption').fill('Uploaded archive image')
+  await page.getByLabel('Photos or videos').setInputFiles({ name: 'tiny.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64') })
+  await page.getByLabel(/I have the right to share this/).first().check(); await page.getByRole('button', { name: 'Publish memory' }).click()
+  await expect(page.getByRole('status')).toContainText('Memory published')
+  await expect(page.getByText('Uploaded archive image')).toBeVisible()
+})

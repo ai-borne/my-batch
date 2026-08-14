@@ -90,6 +90,10 @@ h2 { font-size: 20px; letter-spacing: -.035em; margin-bottom: 6px; }
 .empty-icon { display: grid; place-items: center; width: 62px; height: 62px; border-radius: 99px; color: var(--color-accent); background: color-mix(in srgb, var(--color-accent) 16%, transparent); }
 .bottom-nav { position: fixed; z-index: 10; left: 50%; bottom: max(12px, env(safe-area-inset-bottom)); transform: translateX(-50%); width: min(calc(100% - 24px), 680px); display: grid; grid-template-columns: repeat(6, 1fr); padding: 7px; border: 1px solid var(--color-border); border-radius: 19px; background: var(--color-nav-surface); backdrop-filter: blur(18px); box-shadow: 0 10px 30px var(--color-shadow); }
 .archive-media { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin: 14px 0; }
+.archive-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.archive-tabs button { background: transparent; color: inherit; border: 1px solid var(--color-border); }
+.archive-tabs button.active { background: var(--color-primary); color: var(--color-white); }
+.archive-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
 .archive-media img, .archive-media video { width: 100%; max-height: 360px; border-radius: 10px; object-fit: cover; background: var(--color-text); }
 .comments { display: grid; gap: 4px; margin: 14px 0; color: var(--color-muted); font-size: 14px; }
 .comments p { margin: 0; }

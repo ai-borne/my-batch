@@ -1,4 +1,4 @@
-export { addArchiveMedia, createAlbum, createPost, deleteOwnPost, moderateArchiveContent, reportArchiveContent, saveArchiveComment, setArchiveLike } from './archive.js'
+export { addArchiveMedia, cleanupArchiveOrphans, createAlbum, createPost, deleteOwnComment, deleteOwnPost, manageAlbum, moderateArchiveContent, reportArchiveContent, saveArchiveComment, setArchiveLike, updateOwnPost } from './archive.js'
 export { approveMembership, manageMembership, rejectMembership, requestProfileDataChange } from './membership.js'
 export { assignCoordinator } from './admin.js'
 export { reopenRsvp, submitRsvp } from './reunion.js'

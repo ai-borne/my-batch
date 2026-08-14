@@ -93,3 +93,32 @@ describe('Phase 4 finance callables', () => {
     await expect(member.call('saveExpense', { batchId, category: 'venue', amountPaise: 100, vendor: 'X', expenseDate: '2027-01-06' })).rejects.toMatchObject({ code: 'functions/permission-denied' })
   })
 })
+
+describe('Phase 5 archive callables', () => {
+  it('enforces consent and persists bounded optional post metadata for active members', async () => {
+    const member = await signIn('archive-member@example.test')
+    const uid = member.auth.currentUser!.uid
+    await adminDb.doc(`batches/${batchId}/memberships/${uid}`).set({ uid, status: 'active', role: 'batchmate' })
+
+    await expect(member.call('createPost', { batchId, caption: 'School trip', consentConfirmed: false })).rejects.toMatchObject({ code: 'functions/failed-precondition' })
+    const created = await member.call<{ postId: string }>('createPost', { batchId, caption: 'School trip', peopleTags: ['Aman', 'Aman'], year: 2002, category: 'trips', consentConfirmed: true })
+    expect((await adminDb.doc(`batches/${batchId}/posts/${created.data.postId}`).get()).data()).toMatchObject({ authorUid: uid, caption: 'School trip', peopleTags: ['Aman'], year: 2002, category: 'trips', status: 'visible' })
+    await expect(member.call('createPost', { batchId, consentConfirmed: true, category: 'forged' })).rejects.toMatchObject({ code: 'functions/invalid-argument' })
+  })
+
+  it('keeps moderation coordinator-only and writes an auditable removed state', async () => {
+    const coordinator = await signIn('archive-coordinator@example.test')
+    const member = await signIn('archive-reporter@example.test')
+    const coordinatorUid = coordinator.auth.currentUser!.uid; const memberUid = member.auth.currentUser!.uid
+    await adminDb.doc(`batches/${batchId}/memberships/${coordinatorUid}`).set({ uid: coordinatorUid, status: 'active', role: 'coordinator' })
+    await adminDb.doc(`batches/${batchId}/memberships/${memberUid}`).set({ uid: memberUid, status: 'active', role: 'batchmate' })
+    await adminDb.doc(`batches/${batchId}/posts/post-a`).set({ authorUid: memberUid, status: 'visible' })
+    const report = await member.call<{ reportId: string }>('reportArchiveContent', { batchId, targetType: 'post', targetId: 'post-a', category: 'privacy' })
+    await expect(member.call('moderateArchiveContent', { batchId, reportId: report.data.reportId, action: 'remove' })).rejects.toMatchObject({ code: 'functions/permission-denied' })
+    await coordinator.call('moderateArchiveContent', { batchId, reportId: report.data.reportId, action: 'hide', reason: 'Needs review' })
+    expect((await adminDb.doc(`batches/${batchId}/posts/post-a`).get()).data()).toMatchObject({ status: 'hidden', moderatedBy: coordinatorUid })
+    expect((await adminDb.doc(`batches/${batchId}/reports/${report.data.reportId}`).get()).data()).toMatchObject({ status: 'resolved', resolution: 'hide' })
+    const audits = await adminDb.collection(`batches/${batchId}/auditEvents`).where('action', '==', 'moderation.hide').get()
+    expect(audits.docs.map((doc) => doc.data())).toEqual(expect.arrayContaining([expect.objectContaining({ actorUid: coordinatorUid, targetId: 'post-a' })]))
+  })
+})
