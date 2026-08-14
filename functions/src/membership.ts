@@ -83,3 +83,14 @@ export const manageMembership = onCall({ enforceAppCheck }, async (request) => {
   })
   return { updated: true }
 })
+
+export const requestProfileDataChange = onCall({ enforceAppCheck }, async (request) => {
+  const { batchId, action } = request.data as { batchId?: unknown; action?: unknown }
+  requireBatchId(batchId)
+  if (action !== 'correction' && action !== 'deletion') throw new HttpsError('invalid-argument', 'A supported request action is required.')
+  const uid = requireUid(request.auth)
+  const membership = await db.doc(`batches/${batchId}/memberships/${uid}`).get()
+  if (membership.data()?.status !== 'active') throw new HttpsError('permission-denied', 'Active membership is required.')
+  await db.collection(`batches/${batchId}/profileDataRequests`).add({ uid, action, status: 'open', createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() })
+  return { requested: true }
+})

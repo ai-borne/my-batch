@@ -68,6 +68,12 @@ describe('private batch boundaries', () => {
     await assertSucceeds(member.doc('batches/batch-a/profiles/member').update({ city: 'Pune' }))
     await assertFails(member.doc('batches/batch-a/profiles/member').update({ houseId: 'tilak' }))
     await assertFails(member.doc('batches/batch-a/profiles/coordinator').update({ city: 'Pune' }))
+    await assertFails(member.doc('batches/batch-a/profiles/member').update({ socialLinks: { website: 'javascript:alert(1)' } }))
+  })
+  it('keeps RSVP attendance summaries batch-private', async () => {
+    await environment.withSecurityRulesDisabled(async (context) => context.firestore().doc('batches/batch-a/rsvps/member').set({ uid: 'member', attendance: 'yes' }))
+    await assertSucceeds(db('member').doc('batches/batch-a/rsvps/member').get())
+    await assertFails(db('pending').doc('batches/batch-a/rsvps/member').get())
   })
   it('limits reunion configuration to Coordinators and RSVP writes to trusted functions', async () => {
     await assertFails(db('member').doc('batches/batch-a/reunion/config').update({ title: 'Changed' }))
@@ -94,5 +100,11 @@ describe('private batch boundaries', () => {
     await assertSucceeds(memberStorage.ref('batches/batch-a/posts/visible/media/photo.jpg').putString('photo', 'raw', { contentType: 'image/jpeg' }))
     await assertFails(otherStorage.ref('batches/batch-a/posts/visible/media/photo.jpg').putString('photo', 'raw', { contentType: 'image/jpeg' }))
     await assertFails(memberStorage.ref('batches/batch-a/posts/visible/media/file.pdf').putString('pdf', 'raw', { contentType: 'application/pdf' }))
+  })
+  it('allows only the profile owner to upload an avatar', async () => {
+    const memberStorage = environment.authenticatedContext('member').storage()
+    const coordinatorStorage = environment.authenticatedContext('coordinator').storage()
+    await assertSucceeds(memberStorage.ref('batches/batch-a/profiles/member/avatar/photo.jpg').putString('photo', 'raw', { contentType: 'image/jpeg' }))
+    await assertFails(coordinatorStorage.ref('batches/batch-a/profiles/member/avatar/photo.jpg').putString('photo', 'raw', { contentType: 'image/jpeg' }))
   })
 })

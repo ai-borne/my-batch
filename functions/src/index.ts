@@ -1,5 +1,5 @@
 export { addArchiveMedia, createAlbum, createPost, deleteOwnPost, moderateArchiveContent, reportArchiveContent, saveArchiveComment, setArchiveLike } from './archive.js'
-export { approveMembership, manageMembership, rejectMembership } from './membership.js'
+export { approveMembership, manageMembership, rejectMembership, requestProfileDataChange } from './membership.js'
 export { assignCoordinator } from './admin.js'
 export { reopenRsvp, submitRsvp } from './reunion.js'
 export { attachExpenseReceipt, attachPaymentEvidence, rebuildFundSummary, reviewExpense, reviewPaymentClaim, saveExpense, submitPaymentClaim } from './finance.js'
