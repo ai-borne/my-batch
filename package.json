@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:architecture": "node scripts/check-architecture.mjs",
+    "release:controls": "node scripts/check-release-controls.mjs",
     "test:watch": "vitest",
     "test:rules": "firebase emulators:exec --only auth,firestore,storage \"vitest run --config vitest.rules.config.ts\"",
     "test:functions": "npm --prefix functions run build && firebase emulators:exec --only auth,firestore,functions \"vitest run --config vitest.functions.config.ts\"",

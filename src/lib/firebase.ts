@@ -22,6 +22,11 @@ function config() {
 
 let emulatorsConnected = false
 let appCheckInitialized = false
+const emulatorHost = import.meta.env.VITE_FIREBASE_EMULATOR_HOST ?? '127.0.0.1'
+const authEmulatorPort = Number(import.meta.env.VITE_FIREBASE_AUTH_EMULATOR_PORT ?? 9099)
+const firestoreEmulatorPort = Number(import.meta.env.VITE_FIREBASE_FIRESTORE_EMULATOR_PORT ?? 8080)
+const storageEmulatorPort = Number(import.meta.env.VITE_FIREBASE_STORAGE_EMULATOR_PORT ?? 9199)
+const functionsEmulatorPort = Number(import.meta.env.VITE_FIREBASE_FUNCTIONS_EMULATOR_PORT ?? 5001)
 export function firebaseServices(): { app: FirebaseApp; auth: Auth; db: Firestore; storage: FirebaseStorage; functions: Functions } {
   const app = getApps().length ? getApp() : initializeApp(config())
   if (!appCheckInitialized && import.meta.env.PROD && import.meta.env.VITE_USE_FIREBASE_EMULATORS !== 'true') {
@@ -35,10 +40,10 @@ export function firebaseServices(): { app: FirebaseApp; auth: Auth; db: Firestor
   const storage = getStorage(app)
   const functions = getFunctions(app)
   if (import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true' && !emulatorsConnected) {
-    connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true })
-    connectFirestoreEmulator(db, '127.0.0.1', 8080)
-    connectStorageEmulator(storage, '127.0.0.1', 9199)
-    connectFunctionsEmulator(functions, '127.0.0.1', 5001)
+    connectAuthEmulator(auth, `http://${emulatorHost}:${authEmulatorPort}`, { disableWarnings: true })
+    connectFirestoreEmulator(db, emulatorHost, firestoreEmulatorPort)
+    connectStorageEmulator(storage, emulatorHost, storageEmulatorPort)
+    connectFunctionsEmulator(functions, emulatorHost, functionsEmulatorPort)
     emulatorsConnected = true
   }
   return { app, auth, db, storage, functions }

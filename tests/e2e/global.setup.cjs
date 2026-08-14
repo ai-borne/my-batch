@@ -1,5 +1,5 @@
-process.env.FIREBASE_AUTH_EMULATOR_HOST = '127.0.0.1:9099'
-process.env.FIRESTORE_EMULATOR_HOST = '127.0.0.1:8080'
+process.env.FIREBASE_AUTH_EMULATOR_HOST = `127.0.0.1:${process.env.AJINKYANS_E2E_AUTH_PORT ?? '9099'}`
+process.env.FIRESTORE_EMULATOR_HOST = `127.0.0.1:${process.env.AJINKYANS_E2E_FIRESTORE_PORT ?? '8080'}`
 
 const { getApps, initializeApp } = require('firebase-admin/app')
 const { getAuth } = require('firebase-admin/auth')
