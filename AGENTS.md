@@ -23,7 +23,7 @@ Don’t refactor what isn’t broken. Match existing style.
 
 ## Rule 4 — Goal-Driven Execution
 
-Define success criteria. Loop until verified.
+Define specific, measurable success criteria for each task, including metrics for evaluation. Loop until verified.
 Don’t follow steps. Define success and iterate.
 Strong success criteria let you loop independently.
 
