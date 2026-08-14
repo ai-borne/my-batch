@@ -6,7 +6,7 @@ This matrix is the authorization reference for the Ajinkyans 2002 pilot MVP. UI 
 
 | Role | Scope | Description |
 |---|---|---|
-| Super Admin | Platform/pilot | Creates/configures the batch and assigns Coordinator Gmail IDs. The account is configured privately at deployment time. |
+| Super Admin | Platform | Provisions and revokes Coordinator access, owns Firebase/platform administration, and collects the platform usage charge. It has no batch operational or private-content access and cannot hold a Coordinator membership. |
 | Coordinator | Batch | Runs membership approval, reunion operations, payment verification, expenses, announcements, and moderation. |
 | Batchmate | Batch | Approved member who can use private community features and submit their own content/RSVP/payment claims. |
 | Pending user | None | Authenticated user awaiting membership approval; cannot read private batch data. |
@@ -16,27 +16,27 @@ This matrix is the authorization reference for the Ajinkyans 2002 pilot MVP. UI 
 | Capability / data | Public | Pending user | Batchmate | Coordinator | Super Admin |
 |---|---:|---:|---:|---:|---:|
 | Landing page and public product identity | Read | Read | Read | Read | Read |
-| Private batch content | No | No | Read | Read/write | Read/write |
-| Access request | Create own | Create/update own request | No longer needed | Read/approve/reject | Read/approve/reject |
-| Member directory and profiles | No | No | Read | Read/write | Read/write |
-| Own profile | No | No | Read/write own | Read/write as operational support | Read/write |
-| Another member’s profile | No | No | Read | Read | Read |
-| Houses and house membership | No | No | Read | Manage | Manage |
-| Reunion configuration | No | No | No | Read/write | Read/write |
-| Own RSVP | No | No | Create/read/update own until cutoff | Read/update/reopen | Read/update/reopen |
-| Other members’ RSVP details | No | No | Read | Read/write | Read/write |
-| Memories/posts | No | No | Read/create own/update/delete own | Read/create/update/delete/moderate | Read/create/update/delete/moderate |
-| Comments/likes | No | No | Create/read; delete own | Read/delete/moderate | Read/delete/moderate |
-| Reports | No | No | Create own report | Read/resolve | Read/resolve |
-| Aggregate payment progress | No | No | Read | Read/write via trusted workflow | Read/write via trusted workflow |
-| Own payment claim/evidence | No | No | Submit UTR, amount, and date only; do not read stored claim | Read/write/verify/reject | Read/write/verify/reject |
-| Other members’ payment status, UTRs, screenshots | No | No | No | Read/write | Read/write |
-| Expenses and approved receipts | No | No | Read | Read/write | Read/write |
-| Draft/unapproved expense evidence | No | No | No | Read/write | Read/write |
-| Announcements/notifications | No | No | Read | Create/manage | Create/manage |
+| Private batch content | No | No | Read | Read/write | No |
+| Access request | Create own | Create/update own request | No longer needed | Read/approve/reject | No |
+| Member directory and profiles | No | No | Read | Read; manage house assignment only | No |
+| Own profile | No | No | Read/write own | Read/write own | No |
+| Another member’s profile | No | No | Read | Read | No |
+| Houses and house membership | No | No | Read | Manage | No |
+| Reunion configuration | No | No | No | Read/write | No |
+| Own RSVP | No | No | Create/read/update own until cutoff | Read/update/reopen | No |
+| Other members’ RSVP details | No | No | Read | Read/write | No |
+| Memories/posts | No | No | Read/create own/update/delete own | Read/create/update/delete/moderate | No |
+| Comments/likes | No | No | Create/read; delete own | Read/delete/moderate | No |
+| Reports | No | No | Create own report | Read/resolve | No |
+| Aggregate payment progress | No | No | Read | Read/write via trusted workflow | No |
+| Own payment claim/evidence | No | No | Submit UTR, amount, and date only; do not read stored claim | Read/write/verify/reject | No |
+| Other members’ payment status, UTRs, screenshots | No | No | No | Read/write | No |
+| Expenses and approved receipts | No | No | Read | Read/write | No |
+| Draft/unapproved expense evidence | No | No | No | Read/write | No |
+| Announcements/notifications | No | No | Read | Create/manage | No |
 | Role assignment | No | No | No | No | Assign/revoke Coordinator role |
-| Batch creation/settings | No | No | No | No | Read/write |
-| Export ledger/CSV | No | No | No | Allowed | Allowed |
+| Batch creation/settings | No | No | No | No | Platform bootstrap only |
+| Export ledger/CSV | No | No | No | Allowed | No |
 
 ## Required authorization invariants
 
@@ -52,7 +52,7 @@ This matrix is the authorization reference for the Ajinkyans 2002 pilot MVP. UI 
 
 ## Decisions still needed before writing production rules
 
-- [ ] Whether a Super Admin can also be represented as a Coordinator in a batch.
-- [ ] Whether Coordinators can edit another member’s profile or only assist through an explicit support process.
+- [x] A Super Admin cannot also be represented as a Coordinator in this batch.
+- [x] Coordinators may manage a member's house assignment only; they cannot edit another member's profile fields.
 - [ ] Exact audit-log retention period.
 - [x] Upload limits and allowed MIME types: photos up to 20 MB; videos up to 250 MB and 5 minutes; JPG, PNG, HEIC, WebP, MP4, and MOV.

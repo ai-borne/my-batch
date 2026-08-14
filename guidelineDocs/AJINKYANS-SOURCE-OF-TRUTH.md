@@ -64,11 +64,11 @@ There is no separate admin login or password. Everyone uses **Continue with Goog
 | Role | Purpose and main capabilities |
 |---|---|
 | Batchmate | View approved batch content; edit own profile; create own memories; like/comment; RSVP; submit payment details; view aggregate fund transparency. |
-| Super Admin | Platform/pilot owner: creates the batch, assigns Coordinator Gmail IDs, and retains full administrative access. |
+| Super Admin | Platform owner: provisions and revokes Coordinator access, owns Firebase/platform administration, and collects the platform usage charge. This role has no batch operational or private-content access. |
 | Coordinator | Pilot operations: membership approval, reunion management, payment verification, expenses/receipts, content moderation, and batch administration. |
 | Platform Admin | Future technical/platform owner across batches; not a separate role in the Ajinkyans 2002 pilot MVP. |
 
-For the Ajinkyans 2002 pilot MVP, there are no separate Treasurer or Content Moderator permissions. Coordinators handle those responsibilities. Separate roles may be introduced in a future platform version if needed.
+For the Ajinkyans 2002 pilot MVP, there are no separate Treasurer or Content Moderator permissions. Coordinators handle those responsibilities. The Super Admin cannot also hold a Coordinator membership in this batch. Separate roles may be introduced in a future platform version if needed.
 
 Roles must be **batch-specific**, not a global `isAdmin` flag. A user may be a coordinator in one batch and an ordinary member in another. Admin UI visibility is a convenience only; Firestore/Storage rules must enforce all authorization.
 
@@ -193,6 +193,8 @@ House coordinators are not intended to be payment intermediaries. They can act a
 
 Coordinator-facing views support payment search/status, UTR and screenshot review, verify/reject/request clarification, reminder workflow, CSV/ledger export, and expense entry. An expense records category, amount, vendor, date, receipt, and notes. Coordinators manage overall reunion settings, finance, and moderation according to their role.
 
+Coordinators own the reconciliation ledger. They reconcile it daily while contributions are being collected, then weekly after the reunion until accounts are closed.
+
 ### Future payment direction (not MVP commitment)
 
 The earlier discussion identified a later “Reunion Treasury” concept where a payment gateway could support more automated allocations/vendor payments, subject to eligibility and compliance. Do not assume that capability for the MVP. The V1 architecture should still model batches, events, collections, payments, and expenses so a later gateway integration is possible.
@@ -221,9 +223,11 @@ The evolving value proposition is batch-level SaaS: a batch gets a private commu
 | Authentication | Firebase Authentication with Google OAuth |
 | Primary data | Cloud Firestore |
 | Media | Firebase Storage for photos and videos |
-| Server-side logic | Firebase Cloud Functions initially and/or Cloudflare Workers where appropriate |
+| Server-side logic | Firebase Cloud Functions initially; add Cloudflare Workers only for a later, specific edge/API requirement |
 
 Cloudflare’s free hosting is appropriate for the small pilot. Media storage and bandwidth, not static React hosting, should be treated as the likely cost pressure.
+
+Use separate Firebase projects/configuration for local development, staging, and production; production data must never be used for testing. Use Vitest with the Firebase Emulator Suite for unit and security-rule tests, and Playwright for end-to-end tests.
 
 ### Multi-batch domain model
 
@@ -275,7 +279,7 @@ Security is a product requirement from the start because the app handles names, 
 
 ## 10. PWA and resilience requirements
 
-Ajinkyans should be an installable PWA on iPhone and Android:
+Ajinkyans will be an installable PWA on iPhone and Android as launch-hardening work after the secure core flows are complete:
 
 - Web App Manifest and app icons.
 - HTTPS, splash/theme colours, responsive viewport, and iPhone safe-area support.
@@ -404,6 +408,6 @@ The following appeared as ideas, not confirmed MVP requirements:
 - Automated payment allocation, vendor payments, refunds, or gateway split payments.
 - AI photo organisation, downloadable batch albums, advanced analytics, and unlimited/large media tiers.
 - Exact financial amounts, event dates beyond January 2027, specific UPI ID/account, and final named administrators.
-- Exact Firestore schema, Cloud Functions/Workers division, notification provider, and domain-routing configuration.
+- Exact Firestore schema, notification provider, and domain-routing configuration.
 
 Do not implement these as fixed scope without a subsequent product decision.

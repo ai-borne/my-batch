@@ -4,3 +4,9 @@ dist/
 .env
 .env.*
 !.env.example
+.firebaserc
+firebase-debug.log
+ui-debug.log
+functions/lib/
+playwright-report/
+test-results/

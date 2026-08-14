@@ -5,9 +5,9 @@ This specification translates the pilot permission matrix into enforceable Fireb
 ## Security baseline
 
 - Public users may access only the landing page and public product identity. No private batch document or media is publicly readable.
-- Every private read/write requires Firebase Authentication and an active membership in the requested batch, unless the operation is explicitly Super Admin-only.
+- Every private read/write requires Firebase Authentication and an active membership in the requested batch.
 - Membership status and role are read from `batches/{batchId}/memberships/{uid}`. A client-editable profile field is never an authorization source.
-- Pilot roles are `batchmate` and `coordinator`; the platform Super Admin is represented by a server-controlled custom claim/configuration.
+- Pilot roles are `batchmate` and `coordinator`; the platform Super Admin is represented by a server-controlled custom claim/configuration solely for Coordinator provisioning and platform bootstrap. It has no private batch-data access and cannot hold a Coordinator membership.
 - A member may write only their own profile, RSVP, posts, comments, likes, reports, and payment submission request.
 - Sensitive payment evidence is Coordinator-only. Aggregate finance data is readable by active batch members.
 - Client applications cannot write aggregate totals, verification fields, role fields, audit events, or approval timestamps.
@@ -34,50 +34,50 @@ validBatchId(batchId)
 
 ### `users/{uid}`
 
-- Read: authenticated user may read their own user document; Coordinators/Super Admin may read only fields required for batch operations.
+- Read: authenticated user may read their own user document; Coordinators may read only fields required for batch operations.
 - Create/update: user may create/update only their own non-authoritative profile fields.
 - Deny client writes to authorization claims, batch roles, membership status, payment permissions, or platform flags.
 
 ### `batches/{batchId}`
 
-- Read: active batch members, Coordinators, and Super Admin.
-- Create/update/delete: Super Admin only, preferably through a trusted backend operation.
+- Read: active batch members and Coordinators.
+- Create/update/delete: platform bootstrap only, through a trusted backend operation.
 - Client cannot alter `schoolId`, `passingYear`, owner, or platform status after creation.
 
 ### `batches/{batchId}/memberships/{uid}`
 
 - Read: active batch members may read membership data needed for the directory; pending users may not read the member list.
-- Create/update/delete: Super Admin and Coordinators through controlled operations.
-- A Coordinator may not grant or revoke Coordinator access unless explicitly delegated by Super Admin; pilot default is Super Admin-only role assignment.
+- Create/update/delete: Coordinators through controlled operations. The Super Admin may only create/revoke Coordinator membership through `assignCoordinator`.
+- A Coordinator may not grant or revoke Coordinator access; the Super Admin alone performs that operation.
 - A member cannot change their own `role`, `status`, `approvedBy`, or `approvedAt`.
 
 ### `batches/{batchId}/accessRequests/{requestId}`
 
 - Create: authenticated user may create only a request associated with their own `uid` and the target batch.
-- Read: requester may read their own request; Coordinator/Super Admin may read requests for their batch.
-- Update: requester may update only while pending and only their allowed identity/request fields. Coordinator/Super Admin may approve/reject through trusted operations.
-- Delete: Coordinator/Super Admin only, with an audit event.
+- Read: requester may read their own request; Coordinators may read requests for their batch.
+- Update: requester may update only while pending and only their allowed identity/request fields. Coordinators may approve/reject through trusted operations. A rejected requester may correct and resubmit, or a Coordinator may approve the request.
+- Delete: Coordinator only, with an audit event.
 
 ### `batches/{batchId}/profiles/{uid}`
 
-- Read: active batch members, Coordinators, and Super Admin.
+- Read: active batch members and Coordinators.
 - Create/update: user may write only their own profile and only approved profile fields.
-- Coordinator/Super Admin may update operational fields such as house assignment, subject to audit logging.
-- Delete/suspend: Coordinator/Super Admin only through a controlled operation.
+- Coordinators may update house assignment only, subject to audit logging; they cannot edit another member's profile fields.
+- Delete/suspend/reinstate: Coordinator only through a controlled operation.
 
 ### `batches/{batchId}/rsvps/{uid}`
 
-- Read: active batch members, Coordinators, and Super Admin.
+- Read: active batch members and Coordinators.
 - Create/update: member may write only their own RSVP before the configured cutoff.
-- After cutoff: member writes are denied; Coordinator/Super Admin may reopen or update through a trusted operation.
+- After cutoff: member writes are denied; Coordinators may reopen or update through a trusted operation.
 - A member cannot write `updatedBy` as another user, alter cutoff configuration, or alter another member’s RSVP.
 - Validate attendance enum, non-negative adult/child counts, food preference enum, boolean hotel requirement, and bounded miscellaneous text.
 
 ### `batches/{batchId}/posts/{postId}`
 
-- Read: active batch members, Coordinators, and Super Admin.
+- Read: active batch members and Coordinators.
 - Create: active member may create a post only with `authorUid == request.auth.uid` and a valid batch ID.
-- Update/delete: author may update/delete their own post; Coordinator/Super Admin may moderate or remove any post.
+- Update/delete: author may update/delete their own post; Coordinators may moderate or remove any post.
 - Immutable fields: `batchId`, `authorUid`, `createdAt`.
 - Validate caption length, media references, album membership, and server timestamps.
 
@@ -86,7 +86,7 @@ validBatchId(batchId)
 `posts/{postId}/comments/{commentId}`:
 
 - Active members may create comments as themselves and delete their own comments.
-- Coordinator/Super Admin may remove or hide any comment.
+- Coordinators may remove or hide any comment.
 - Immutable fields include `authorUid`, `postId`, and `createdAt`.
 
 `posts/{postId}/likes/{uid}`:
@@ -97,33 +97,33 @@ validBatchId(batchId)
 `albums/{albumId}`:
 
 - Active members may read.
-- Author/owner may create and edit their own album; Coordinator/Super Admin may manage all albums.
+- Author/owner may create and edit their own album; Coordinators may manage all albums.
 - Media membership changes must validate the referenced batch and post ownership.
 
 `reports/{reportId}`:
 
 - Active members may create only a report authored by themselves.
-- Reporter may read their own report status; Coordinator/Super Admin may read and resolve reports.
-- Report resolution fields are Coordinator/Super Admin-only and audit logged.
+- Reporter may read their own report status; Coordinators may read and resolve reports.
+- Report resolution fields are Coordinator-only and audit logged.
 
 ### Payment data
 
 `batches/{batchId}/paymentConfig/current`:
 
 - Read: active batch members may read non-sensitive payment instructions such as QR path, UPI ID, and current configured amount.
-- Write: Coordinator/Super Admin only; validate INR amounts, UPI format, and Storage path ownership.
+- Write: Coordinator only; validate INR amounts, UPI format, and Storage path ownership.
 
 `batches/{batchId}/paymentClaims/{claimId}`:
 
 - Create: active member may submit a claim only through a trusted callable/backend operation. The submitted `memberUid` must equal the authenticated UID.
-- Read: Coordinator/Super Admin only. Batchmates cannot read stored claims, including their own claim after submission.
-- Update: Coordinator/Super Admin only for status, review fields, rejection reason, and evidence metadata.
+- Read: Coordinator only. Batchmates cannot read stored claims, including their own claim after submission.
+- Update: Coordinator only for status, review fields, rejection reason, and evidence metadata.
 - Client cannot write `status`, `reviewedBy`, `reviewedAt`, or aggregate fields.
 - Required submission fields are UTR, amount, payment date, and member UID. Validate amount bounds and UTR length/format.
 
 `batches/{batchId}/fundSummary/public`:
 
-- Read: active batch members, Coordinators, and Super Admin.
+- Read: active batch members and Coordinators.
 - Write: trusted backend only after verified payment or approved expense changes.
 - Deny all direct client writes.
 
@@ -131,15 +131,15 @@ validBatchId(batchId)
 
 `batches/{batchId}/expenses/{expenseId}`:
 
-- Read: active batch members may read approved expenses only; Coordinator/Super Admin may read all states.
-- Create/update/delete: Coordinator/Super Admin only.
+- Read: active batch members may read approved expenses only; Coordinators may read all states.
+- Create/update/delete: Coordinator only.
 - Draft, rejected, vendor details, notes, and unapproved metadata remain Coordinator-only unless explicitly approved.
 - Approved expense changes must update the aggregate fund summary through trusted code.
 
 ### Configuration, announcements, and audit
 
-- Reunion configuration, schedule, contacts, announcements, and RSVP cutoff: Coordinator/Super Admin write; active members read published records.
-- `auditEvents/{eventId}`: Coordinator/Super Admin may read according to operational need; client writes are denied. Trusted backend creates immutable audit events.
+- Reunion configuration, schedule, contacts, announcements, and RSVP cutoff: Coordinator write; active members read published records.
+- `auditEvents/{eventId}`: Coordinators may read according to operational need; client writes are denied. Trusted backend creates immutable audit events.
 - Audit events must record actor UID, batch ID, action, target path/type, timestamp, and outcome without copying sensitive payment evidence into logs.
 
 ## Storage Rules requirements
@@ -155,10 +155,10 @@ batches/{batchId}/expenses/{expenseId}/receipts/{file}
 batches/{batchId}/reunion/qr/{file}
 ```
 
-- Profile/post/album uploads: active batch members may upload only to their own authorized creation flow; Coordinators/Super Admin may moderate/remove.
-- Payment evidence and unapproved receipts: Coordinator/Super Admin read/write only.
-- Approved expense receipts: active batch members may read; only Coordinator/Super Admin may write/delete.
-- Reunion QR: active members may read; Coordinator/Super Admin may replace.
+- Profile/post/album uploads: active batch members may upload only to their own authorized creation flow; Coordinators may moderate/remove.
+- Payment evidence and unapproved receipts: Coordinator-only read/write.
+- Approved expense receipts: active batch members may read; only Coordinators may write/delete.
+- Reunion QR: active members may read; Coordinators may replace.
 - Validate content type and size in Storage Rules and again in backend processing. Recommended pilot limits: photos 20 MB; videos 250 MB and 5 minutes; formats JPG, PNG, HEIC, WebP, MP4, MOV.
 - Do not expose permanent public download URLs for private media. Use authenticated Firebase access or short-lived authorized downloads.
 - Reject paths where the supplied batch ID does not match the document/binding being uploaded.
@@ -167,7 +167,7 @@ batches/{batchId}/reunion/qr/{file}
 
 Implement these as callable Cloud Functions or equivalent authenticated backend endpoints:
 
-1. `approveMembership` / `rejectMembership`
+1. `approveMembership` / `rejectMembership` (Coordinator only; a rejected requester may later resubmit or be approved by a Coordinator)
 2. `assignCoordinator`
 3. `reopenRsvp`
 4. `submitPaymentClaim`
@@ -189,9 +189,9 @@ Before staging data is used, automated Emulator Suite tests must verify at minim
 - Batchmate cannot edit another member’s profile, RSVP, post, comment, or like.
 - Batchmate cannot bypass the RSVP cutoff or reopen an RSVP.
 - Batchmate cannot write a verified payment status or fund summary.
-- Coordinator can approve membership, verify/reject payments, manage expenses, and moderate content only within their batch.
-- Coordinator cannot assign another Coordinator unless the Super Admin operation permits it.
-- Super Admin can assign the Coordinator and configure the batch.
+- Coordinator can approve, suspend, remove, and reinstate membership; verify/reject payments; manage expenses; and moderate content only within their batch.
+- Coordinator cannot assign or revoke another Coordinator.
+- Super Admin can assign/revoke Coordinator access only; it cannot access or configure private batch operations.
 - Cross-batch reads and writes fail even when the user is an active member of a different batch.
 - Payment evidence and unapproved receipts are inaccessible to Batchmates.
 - Approved expenses and aggregate fund summary are readable to active Batchmates.
@@ -205,4 +205,3 @@ Before staging data is used, automated Emulator Suite tests must verify at minim
 - [ ] No production payment evidence or real member media is used in development.
 - [ ] Super Admin bootstrap procedure is documented and tested.
 - [ ] Firebase project ownership, billing, backups, and incident contacts are recorded privately.
-

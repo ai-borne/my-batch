@@ -1,0 +1,28 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() { return request.auth != null; }
+    function active(batchId) {
+      return signedIn() && firestore.get(/databases/(default)/documents/batches/$(batchId)/memberships/$(request.auth.uid)).data.status == 'active';
+    }
+    function coordinator(batchId) {
+      return active(batchId) && firestore.get(/databases/(default)/documents/batches/$(batchId)/memberships/$(request.auth.uid)).data.role == 'coordinator';
+    }
+    function image() { return request.resource.contentType.matches('image/(jpeg|png|heic|webp)') && request.resource.size <= 20 * 1024 * 1024; }
+    function video() { return request.resource.contentType.matches('video/(mp4|quicktime)') && request.resource.size <= 250 * 1024 * 1024; }
+    function allowedMedia() { return image() || video(); }
+
+    match /batches/{batchId}/profiles/{uid}/avatar/{fileName} {
+      allow read: if active(batchId);
+      allow write: if active(batchId) && request.auth.uid == uid && image();
+    }
+    match /batches/{batchId}/posts/{postId}/media/{fileName} {
+      allow read: if active(batchId);
+      allow create: if active(batchId) && allowedMedia() && firestore.get(/databases/(default)/documents/batches/$(batchId)/posts/$(postId)).data.authorUid == request.auth.uid;
+      allow update, delete: if false;
+    }
+    match /batches/{batchId}/payments/{claimId}/evidence/{fileName} { allow read, write: if coordinator(batchId); }
+    match /batches/{batchId}/expenses/{expenseId}/receipts/{fileName} { allow read: if active(batchId); allow write: if coordinator(batchId); }
+    match /batches/{batchId}/reunion/qr/{fileName} { allow read: if active(batchId); allow write: if coordinator(batchId) && image(); }
+  }
+}

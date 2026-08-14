@@ -57,7 +57,7 @@ These answers came from the pilot owner and should guide the MVP. Items marked `
 - [x] Confirm that Coordinators configure reunion schedule, venue logistics, UPI/payment instructions, and other operational details from their accounts.
 - [x] Confirm that the Super Admin owns the Firebase project and production administration.
 - [x] Confirm that pilot success is assessed after the 2002 batch reunion.
-- [ ] Define concrete privacy, consent, retention, takedown, and moderation rules based on the agreed high-standard baseline.
+- [x] Define concrete privacy, consent, retention, takedown, and moderation rules in `AJINKYANS-PRIVACY-CONSENT-MODERATION-POLICY.md`.
 - [x] Confirm that no content requires Coordinator approval before publication; Coordinators handle reports, removals, and flagged content.
 
 ## 1. Pilot identity and scope
@@ -67,7 +67,7 @@ These answers came from the pilot owner and should guide the MVP. Items marked `
 - [x] Confirm the pilot venue and whether directions/accommodation information is ready: Sainik School Satara confirmed; logistics details remain open.
 - [x] Confirm the initial member invitation and approval process: access requests are manually approved.
 - [~] Define the pilot success criteria: success is evaluated after the Ajinkyans 2002 reunion; exact measures and thresholds remain open.
-- [ ] Explicitly list what is out of MVP scope: direct messaging, payment gateway/platform-held funds, automated vendor payouts, AI organisation, and other future ideas.
+- [x] Explicitly exclude direct messaging, payment gateway/platform-held funds, automated vendor payouts, AI organisation, and other future ideas; see the source of truth's future-ideas section.
 - [x] Decide whether video uploads are included in the first pilot or enabled after the photo archive is stable: photos and videos are included.
 
 ## 2. People, ownership, and operating rules
@@ -75,32 +75,32 @@ These answers came from the pilot owner and should guide the MVP. Items marked `
 - [~] Name the Super Admin / primary product owner: account details to be configured privately later.
 - [~] Name the Coordinator(s): Batch Coordinator is added by the Super Admin; Gmail ID remains open.
 - [x] Confirm there are no Treasurer or Content Moderator permissions in the pilot MVP; Coordinators handle those responsibilities.
-- [ ] Define who can approve, suspend, remove, and reinstate members.
-- [ ] Define who can approve, reject, or request clarification on payment claims.
+- [x] Coordinators approve, suspend, remove, and reinstate members. The Super Admin assigns/revokes Coordinator access only.
+- [x] Coordinators approve, reject, or request clarification on payment claims.
 - [ ] Define an escalation contact for privacy, safety, and inappropriate content reports.
 - [x] Decide the support channel for the pilot: members contact Coordinators personally through WhatsApp; no in-website messaging flow.
 
 ## 3. Membership and identity
 
-- [ ] Confirm Google OAuth as the only sign-in method for MVP.
-- [ ] Define the access-request fields: name, house, passing year, and any additional verification field.
+- [x] Confirm Google OAuth as the only sign-in method for MVP.
+- [x] Define the access-request fields: name, house, and passing year. No additional verification field is required for the pilot.
 - [x] Define how Coordinators verify that an access request belongs to the batch: the Super Admin assigns Coordinators by Gmail ID, and Coordinators approve signed-in users’ membership requests.
-- [ ] Define the membership states and transitions: requested, pending, active, suspended, removed.
-- [ ] Confirm the six pilot houses and their Junior/Senior grouping.
+- [x] Define membership transitions: an access request is pending; a Coordinator may approve it to active or reject it. A rejected user may correct and resubmit, or a Coordinator may approve the request. Coordinators may later suspend, remove, or reinstate an active member.
+- [x] Confirm the six pilot houses and their Junior/Senior grouping: Junior—Shivaji and Nehru; Senior—Karve, Rana Pratap, Shastri, and Tilak.
 - [ ] Decide whether a member may belong to more than one batch in the platform model.
-- [ ] Define the canonical profile fields and which are optional.
+- [x] Define the canonical profile fields and optionality in `AJINKYANS-FIRESTORE-DATA-MODEL.md`.
 - [x] Define who can see each profile field and RSVP details: visible to approved batch members; public unauthenticated users cannot access them.
-- [ ] Decide the account deletion, profile removal, and data-export process.
+- [x] Define account/profile deletion and correction under the privacy policy; active profile/RSVP data is deleted or anonymized within 30 days of an approved request unless a documented hold applies.
 
 ## 4. Roles and authorization
 
 - [x] Confirm the pilot batch-specific roles: Batchmate, Coordinator, and Super Admin. Treasurer and Content Moderator permissions are excluded from the pilot MVP.
-- [ ] Define a permission matrix for reading and writing each product area.
-- [ ] Confirm whether one person may hold multiple roles in the same batch.
-- [ ] Define who may assign, change, and revoke roles.
-- [ ] Confirm that Firestore and Storage rules—not UI visibility—are the authorization source of truth.
+- [x] Define the permission matrix in `AJINKYANS-PERMISSION-MATRIX.md`.
+- [x] Confirm that a Super Admin cannot also hold a Coordinator membership in this batch.
+- [x] Define role assignment: the Super Admin alone assigns or revokes Coordinator access; Coordinators manage all batch operations.
+- [x] Confirm that Firestore and Storage rules—not UI visibility—are the authorization source of truth.
 - [x] Define Coordinator financial access: Coordinators can access UTRs, screenshots, payment claims, exports, and receipts.
-- [ ] Define the audit trail required for approvals, role changes, payment decisions, moderation, and deletions.
+- [x] Define immutable audit events for approvals, role changes, payment decisions, moderation, and deletions in `AJINKYANS-FIREBASE-SECURITY-RULES-SPEC.md`.
 
 ## 5. Reunion and RSVP
 
@@ -120,19 +120,19 @@ These answers came from the pilot owner and should guide the MVP. Items marked `
 - [~] Confirm the collection UPI ID, account owner, and process for changing it: configured by Coordinators.
 - [~] Confirm contribution heads: spouse, child, vegetarian/non-vegetarian preference, and hotel requirement are required for planning; the financial contribution-head model remains open.
 - [~] Confirm the amount or calculation rule for each contribution head: ₹30,000 per family is the starting/default amount; Coordinators may set another amount. The website records payment claims and populates the dashboard.
-- [ ] Define accepted payment methods and required claim fields.
-- [ ] Confirm whether UTR/transaction ID, payment date, amount, method, and screenshot are mandatory or optional.
+- [x] Define UPI as the pilot payment method. UTR, amount, and payment date are required; payment method is recorded as UPI and a screenshot is optional.
+- [x] Confirm UTR/transaction ID, payment date, and amount are required; payment method is UPI and the screenshot is optional.
 - [x] Define payment states: Unpaid, Submitted, Under Review, Verified, Rejected.
 - [x] Define who can see individual payment records and evidence: Coordinators only; approved batch members see aggregate payment progress only.
 - [x] Define aggregate dashboard visibility: approved batch members see aggregate payment progress; individual payment records remain restricted to Coordinators.
 - [x] Define expense visibility: approved expenses and receipts are visible to approved batch members.
 - [ ] Define expense categories and required receipt/vendor/date/notes fields.
-- [ ] Confirm reconciliation frequency and who owns the ledger.
+- [x] Coordinators own reconciliation and the ledger: reconcile daily while contributions are being collected, then weekly after the reunion until accounts are closed.
 - [ ] Confirm CSV export format and retention period for financial evidence.
 
 ## 7. Memory archive and moderation
 
-- [ ] Confirm allowed media types, file-size limits, duration limits, and image dimensions.
+- [x] Confirm allowed media types and limits: JPG, PNG, HEIC, WebP, MP4, and MOV; photos up to 20 MB; videos up to 250 MB and five minutes. Image dimensions are constrained by the file-size limit only for the pilot.
 - [ ] Decide whether a post may contain multiple photos/videos.
 - [ ] Confirm required and optional post metadata: caption, people tags, album, year, category.
 - [ ] Decide whether years/categories are filters in MVP or only future organisation metadata.
@@ -145,9 +145,9 @@ These answers came from the pilot owner and should guide the MVP. Items marked `
 ## 8. Privacy, security, and compliance
 
 - [x] Approve the privacy notice and consent baseline for profiles, photos/videos, RSVP, and payment evidence using the pilot privacy policy; final UI wording remains an implementation task.
-- [ ] Confirm that private batch data is excluded from public indexing and unauthenticated reads.
-- [ ] Define retention/deletion periods for inactive accounts, reports, payment evidence, and removed media.
-- [ ] Define the process for a member requesting correction or removal of personal data.
+- [x] Confirm that private batch data is excluded from public indexing and unauthenticated reads.
+- [x] Define retention/deletion periods for accounts, reports, payment evidence, and removed media in the privacy policy.
+- [x] Define the member correction/removal process in the privacy policy: request it through a Coordinator using the published WhatsApp route.
 - [ ] Confirm Firestore rules for approved membership and batch scoping.
 - [ ] Confirm Storage rules for authenticated, batch-scoped uploads and financial evidence.
 - [ ] Define upload validation, malware/content checks, rate limits, and abuse controls.
@@ -157,11 +157,12 @@ These answers came from the pilot owner and should guide the MVP. Items marked `
 
 ## 9. Technical architecture and operations
 
-- [ ] Confirm React + TypeScript + Vite + Tailwind as the frontend stack.
-- [ ] Confirm Firebase Authentication, Firestore, and Storage for MVP.
-- [ ] Decide whether trusted backend work starts in Firebase Cloud Functions, Cloudflare Workers, or both.
-- [ ] Define the initial Firestore collection/document model before UI implementation.
-- [ ] Define environment separation: local, staging, and production Firebase projects/configuration.
+- [x] Confirm React + TypeScript + Vite + Tailwind as the frontend stack.
+- [x] Confirm Firebase Authentication, Firestore, and Storage for MVP.
+- [x] Start trusted backend work in Firebase Cloud Functions. Add Cloudflare Workers only for a later, specific edge/API requirement.
+- [x] Define the initial Firestore collection/document model in `AJINKYANS-FIRESTORE-DATA-MODEL.md`.
+- [x] Use separate Firebase projects/configuration for local development, staging, and production. Never test against production data.
+- [x] Use Vitest with the Firebase Emulator Suite for unit/security-rule tests and Playwright for end-to-end tests.
 - [ ] Confirm hosting and domain routing for `ajinkyans.com` and `ajinkyans.in`.
 - [ ] Decide the state-management boundary; add Zustand only if component/local state is insufficient.
 - [ ] Define logging, error reporting, backup/export, and incident-response procedures.
@@ -186,7 +187,7 @@ These answers came from the pilot owner and should guide the MVP. Items marked `
 - [ ] Test every role against the permission matrix.
 - [ ] Test payment claim, verification, rejection, resubmission, and aggregate reporting flows.
 - [ ] Test upload, feed, comments, reporting, moderation, and deletion flows.
-- [ ] Test mobile browsers, installable PWA behaviour, offline shell, and poor-network states.
+- [ ] Test mobile browsers, installable PWA behaviour, offline shell, and poor-network states as launch-hardening work after the secure core flows are complete.
 - [ ] Run a security review covering Firestore, Storage, uploads, exports, and secrets.
 - [ ] Run a data/backup restore test before importing real data.
 - [ ] Invite 10–15 batchmates for a controlled pilot.
