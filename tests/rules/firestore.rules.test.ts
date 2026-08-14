@@ -25,6 +25,7 @@ beforeEach(async () => { await environment.clearFirestore(); await environment.c
   await admin.doc('batches/batch-a/posts/hidden').set({ authorUid: 'member', status: 'hidden', caption: 'Hidden memory' })
   await admin.doc('batches/batch-a/posts/visible/comments/comment').set({ authorUid: 'member', body: 'Nice', status: 'visible' })
   await admin.doc('batches/batch-a/albums/visible').set({ authorUid: 'member', status: 'visible', title: 'Archive' })
+  await admin.doc('batches/batch-a/notifications/member/items/payment').set({ title: 'Payment verified', body: 'Done', kind: 'payment' })
 }) })
 afterAll(async () => { if (environment) await environment.cleanup() })
 describe('private batch boundaries', () => {
@@ -108,6 +109,11 @@ describe('private batch boundaries', () => {
     await assertFails(member.doc('batches/batch-a/reports/new').set({ targetType: 'post' }))
     await assertFails(member.doc('batches/batch-a/reports/new').get())
     await assertSucceeds(coordinator.doc('batches/batch-a/reports/new').get())
+  })
+  it('keeps each notification centre private and server-written', async () => {
+    await assertSucceeds(db('member').doc('batches/batch-a/notifications/member/items/payment').get())
+    await assertFails(db('coordinator').doc('batches/batch-a/notifications/member/items/payment').get())
+    await assertFails(db('member').doc('batches/batch-a/notifications/member/items/forged').set({ title: 'Forged' }))
   })
   it('allows only an active post author to upload permitted archive media', async () => {
     const memberStorage = environment.authenticatedContext('member').storage()

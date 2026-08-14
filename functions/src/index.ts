@@ -3,3 +3,4 @@ export { approveMembership, manageMembership, rejectMembership, requestProfileDa
 export { assignCoordinator } from './admin.js'
 export { reopenRsvp, submitRsvp } from './reunion.js'
 export { attachExpenseReceipt, attachPaymentEvidence, rebuildFundSummary, reviewExpense, reviewPaymentClaim, saveExpense, submitPaymentClaim } from './finance.js'
+export { markNotificationsRead, publishAnnouncement } from './notifications.js'

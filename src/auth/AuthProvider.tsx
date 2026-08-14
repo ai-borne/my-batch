@@ -3,6 +3,7 @@ import { GoogleAuthProvider, User, onAuthStateChanged, reauthenticateWithPopup, 
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore/lite'
 import { firebaseServices } from '../lib/firebase'
 import { Membership, PILOT_BATCH_ID } from '../lib/membership'
+import { clearPrivateAppCache } from '../lib/cachePrivacy'
 
 type AuthState = { user: User | null; membership: Membership | null; loading: boolean; signIn: () => Promise<void>; signInForE2E: (email: string, password: string) => Promise<void>; signOut: () => Promise<void>; reauthenticate: () => Promise<void>; refreshMembership: () => Promise<void> }
 const AuthContext = createContext<AuthState | null>(null)
@@ -26,7 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false)
     })
   }, [])
-  const value = useMemo(() => ({ user, membership, loading, refreshMembership, signIn: async () => { await signInWithPopup(firebaseServices().auth, new GoogleAuthProvider()) }, signInForE2E: async (email: string, password: string) => { if (import.meta.env.VITE_E2E_AUTH !== 'true') throw new Error('Test sign-in is unavailable.'); await signInWithEmailAndPassword(firebaseServices().auth, email, password) }, signOut: async () => { await signOut(firebaseServices().auth) }, reauthenticate: async () => { if (!user) throw new Error('Sign in is required.'); if (import.meta.env.VITE_E2E_AUTH === 'true') { await user.getIdToken(true); return }; await reauthenticateWithPopup(user, new GoogleAuthProvider()); await user.getIdToken(true) } }), [user, membership, loading])
+  const value = useMemo(() => ({ user, membership, loading, refreshMembership, signIn: async () => { await signInWithPopup(firebaseServices().auth, new GoogleAuthProvider()) }, signInForE2E: async (email: string, password: string) => { if (import.meta.env.VITE_E2E_AUTH !== 'true') throw new Error('Test sign-in is unavailable.'); await signInWithEmailAndPassword(firebaseServices().auth, email, password) }, signOut: async () => { await clearPrivateAppCache(); await signOut(firebaseServices().auth) }, reauthenticate: async () => { if (!user) throw new Error('Sign in is required.'); if (import.meta.env.VITE_E2E_AUTH === 'true') { await user.getIdToken(true); return }; await reauthenticateWithPopup(user, new GoogleAuthProvider()); await user.getIdToken(true) } }), [user, membership, loading])
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 export function useAuth() { const state = useContext(AuthContext); if (!state) throw new Error('useAuth must be rendered within AuthProvider.'); return state }

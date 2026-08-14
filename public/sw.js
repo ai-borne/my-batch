@@ -1,4 +1,4 @@
-const cacheName = 'ajinkyans-shell-v1'
+const cacheName = 'ajinkyans-shell-v2'
 const shell = ['/', '/index.html', '/offline.html', '/manifest.webmanifest']
 
 self.addEventListener('install', (event) => {
@@ -11,14 +11,20 @@ self.addEventListener('activate', (event) => {
   self.clients.claim()
 })
 
+self.addEventListener('message', (event) => {
+  if (event.data === 'ajinkyans:purge-caches') event.waitUntil(caches.keys().then((names) => Promise.all(names.map((name) => caches.delete(name)))))
+})
+
 self.addEventListener('fetch', (event) => {
   const request = event.request
   if (request.method !== 'GET' || new URL(request.url).origin !== self.location.origin) return
   if (request.mode === 'navigate') {
-    event.respondWith(fetch(request).catch(() => caches.match('/index.html').then((response) => response || caches.match('/offline.html'))))
+    event.respondWith(fetch(request).catch(() => caches.match('/offline.html')))
     return
   }
-  if (!['script', 'style', 'font', 'image', 'manifest'].includes(request.destination)) return
+  const path = new URL(request.url).pathname
+  const cacheableAsset = path.startsWith('/assets/') || path.startsWith('/icons/') || path === '/manifest.webmanifest'
+  if (!cacheableAsset) return
   event.respondWith(caches.match(request).then((cached) => cached || fetch(request).then((response) => {
     if (response.ok) void caches.open(cacheName).then((cache) => cache.put(request, response.clone()))
     return response

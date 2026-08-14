@@ -57,6 +57,7 @@ service cloud.firestore {
       }
       match /albums/{albumId} { allow read: if active(batchId) && resource.data.status == 'visible'; allow write: if false; }
       match /reports/{reportId} { allow read: if coordinator(batchId); allow write: if false; }
+      match /notifications/{uid}/items/{notificationId} { allow read: if self(uid) && active(batchId); allow write: if false; }
       match /{document=**} { allow read, write: if false; }
     }
   }

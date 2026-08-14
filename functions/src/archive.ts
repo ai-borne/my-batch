@@ -3,6 +3,7 @@ import { getStorage } from 'firebase-admin/storage'
 import { HttpsError, onCall } from 'firebase-functions/v2/https'
 import sharp from 'sharp'
 import { db, requireActiveMember, requireBatchId, requireCoordinator, requireUid } from './shared.js'
+import { notify } from './notifications.js'
 
 const mediaTypes = new Set(['image/jpeg', 'image/png', 'image/heic', 'image/webp', 'video/mp4', 'video/quicktime'])
 const reportCategories = new Set(['harassment', 'sexualContent', 'privacy', 'financialInformation', 'fraud', 'spam', 'rights', 'other'])
@@ -206,13 +207,16 @@ export const moderateArchiveContent = onCall(async (request) => {
   if (!report.exists) throw new HttpsError('not-found', 'Report was not found.')
   const note = text(reason, 'reason', 1_000, false)
   const targetType = String(report.data()?.targetType); const targetId = String(report.data()?.targetId)
+  const targetRef = targetType === 'post' ? db.doc(`batches/${batchId}/posts/${targetId}`) : targetType === 'comment' ? db.doc(`batches/${batchId}/posts/${targetId.split('/')[0]}/comments/${targetId.split('/')[1]}`) : undefined
   if (action === 'hide' || action === 'remove') {
-    const targetRef = targetType === 'post' ? db.doc(`batches/${batchId}/posts/${targetId}`) : targetType === 'comment' ? db.doc(`batches/${batchId}/posts/${targetId.split('/')[0]}/comments/${targetId.split('/')[1]}`) : undefined
     if (!targetRef) throw new HttpsError('failed-precondition', 'This report target requires manual handling.')
     await targetRef.update({ status: action === 'hide' ? 'hidden' : 'removed', moderatedBy: uid, moderatedAt: FieldValue.serverTimestamp(), moderationReason: note ?? 'Content removed by a Coordinator.' })
     if (action === 'remove' && targetType === 'post') await getStorage().bucket().deleteFiles({ prefix: `batches/${batchId}/posts/${targetId}/media/` })
   }
   await reportRef.update({ status: action === 'dismiss' ? 'dismissed' : 'resolved', resolution: action, resolvedBy: uid, resolvedAt: FieldValue.serverTimestamp(), ...(note ? { resolutionReason: note } : {}), updatedAt: FieldValue.serverTimestamp() })
+  const target = targetRef && await targetRef.get()
+  const authorUid = target?.data()?.authorUid
+  if (typeof authorUid === 'string') await notify(batchId, authorUid, 'moderation', 'Moderation outcome', action === 'dismiss' ? 'A report about your content was dismissed.' : `A Coordinator reviewed your content: ${action}.`)
   await audit(batchId, uid, `moderation.${action}`, targetId)
   return { moderated: true }
 })

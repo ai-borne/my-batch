@@ -47,6 +47,10 @@ export function CoordinatorPage() {
     await addDoc(collection(db, `batches/${PILOT_BATCH_ID}/reunionContacts`), { name: data.get('name'), role: data.get('role'), phone: data.get('phone'), createdAt: serverTimestamp(), updatedAt: serverTimestamp() })
     event.currentTarget.reset(); setNotice('Contact added.')
   }
+  async function announce(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); const data = new FormData(event.currentTarget)
+    try { const result = await call('publishAnnouncement', { batchId: PILOT_BATCH_ID, title: data.get('title'), body: data.get('body') }) as { data: { delivered: number } }; event.currentTarget.reset(); setNotice(`Announcement delivered to ${result.data.delivered} active members.`) } catch (error) { setNotice(error instanceof Error ? error.message : 'Unable to publish announcement.') }
+  }
   async function savePaymentConfig(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); const data = new FormData(event.currentTarget); const qr = data.get('qr') as File
     const qrStoragePath = `batches/${PILOT_BATCH_ID}/reunion/qr/${Date.now()}-${qr.name}`
@@ -68,6 +72,7 @@ export function CoordinatorPage() {
   }
   return <section className="page-stack"><div><p className="eyebrow">Coordinator</p><h1>Batch operations</h1></div>
     <section className="panel"><h2>Pending access requests</h2>{requests.map((request) => <div className="member-row" key={request.id}><span><strong>{request.displayName}</strong><small>{request.houseId ?? 'No house selected'}</small></span><span className="member-actions"><button onClick={() => void approve(request.id)}>Approve</button><button onClick={() => void reject(request.id)}>Reject</button></span></div>)}</section>
+    <form className="panel form-stack" onSubmit={announce}><h2>Batch announcement</h2><label>Title<input name="title" maxLength={120} required /></label><label>Message<textarea name="body" maxLength={1000} required /></label><button>Publish announcement</button></form>
     <form className="panel form-stack" onSubmit={saveReunion}><h2>Reunion details</h2><label>Title<input name="title" defaultValue="Silver Jubilee Reunion" required /></label><label>Venue<input name="venue" required /></label><label>Google Maps link<input name="mapUrl" type="url" required /></label><label>RSVP cutoff<input name="cutoff" type="datetime-local" required /></label><label>Accommodation<textarea name="accommodation" maxLength={3000} /></label><label>Arrival, parking and logistics<textarea name="logistics" maxLength={3000} /></label><label>Instructions<textarea name="instructions" maxLength={3000} /></label><button>Save reunion details</button></form>
     <form className="panel form-stack" onSubmit={addSchedule}><h2>Add schedule event</h2><label>Title<input name="title" required /></label><label>Location<input name="location" required /></label><label>Starts<input name="startsAt" type="datetime-local" required /></label><label>Ends<input name="endsAt" type="datetime-local" required /></label><button>Add event</button></form>
     <form className="panel form-stack" onSubmit={addContact}><h2>Add operational contact</h2><label>Name<input name="name" required /></label><label>Role<input name="role" required /></label><label>Phone<input name="phone" type="tel" required /></label><button>Add contact</button></form>

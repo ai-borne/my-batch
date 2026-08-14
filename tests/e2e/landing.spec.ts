@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 async function signIn(page: import('@playwright/test').Page, email: string) { await page.goto('/'); await page.getByLabel('Test email').fill(email); await page.getByLabel('Test password').fill('password-123'); await page.getByRole('button', { name: 'Test sign in' }).click(); await expect(page.getByRole('status')).toHaveText('Test session ready') }
+async function signOut(page: import('@playwright/test').Page) { await page.getByRole('button', { name: 'Sign out' }).click(); await expect(page.getByRole('button', { name: 'Continue with Google' })).toBeVisible() }
 test('public landing exposes Google sign-in but no private batch data', async ({ page }) => { await page.goto('/'); await expect(page.getByRole('button', { name: 'Continue with Google' })).toBeVisible(); await expect(page.getByText('Private batch home.')).toHaveCount(0) })
 
 test('mobile landing exposes the installable app metadata without private content', async ({ page }) => {
@@ -43,10 +44,18 @@ test('desktop keeps matching top navigation without the mobile bar', async ({ pa
   await expect(navigation.getByRole('link')).toHaveCount(5)
 })
 
+test('mobile notification centre is keyboard-accessible and displays member-scoped updates', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await signIn(page, 'member@example.test'); await page.goto('/home')
+  const notifications = page.getByRole('button', { name: /Notifications \(1 unread\)/ })
+  await expect(notifications).toBeVisible(); await notifications.focus(); await page.keyboard.press('Enter')
+  await expect(page.getByRole('region', { name: 'Notification centre' })).toContainText('Welcome back')
+})
+
 test('Coordinator tools live under Account and are hidden from batchmates', async ({ page }) => {
   await signIn(page, 'coordinator@example.test'); await page.goto('/account')
   await expect(page.getByRole('link', { name: 'Open Coordinator tools' })).toBeVisible()
-  await page.getByRole('button', { name: 'Sign out' }).click()
+  await signOut(page)
   await signIn(page, 'member@example.test'); await page.goto('/account')
   await expect(page.getByRole('link', { name: 'Open Coordinator tools' })).toHaveCount(0)
 })
@@ -55,9 +64,9 @@ test('a member can submit, have a payment rejected, and submit a corrected claim
   await signIn(page, 'member@example.test'); await page.goto('/reunion/fund')
   await page.getByLabel('Amount paid (₹)').fill('30000'); await page.getByLabel('UTR / transaction ID').fill('UTR-PLAYWRIGHT-1'); await page.getByLabel('Payment date').fill('2027-01-06')
   await page.getByRole('button', { name: 'Submit for review' }).click(); await expect(page.getByRole('status')).toContainText('submitted')
-  await page.getByRole('button', { name: 'Sign out' }).click(); await signIn(page, 'coordinator@example.test'); await page.goto('/account/coordinator')
+  await signOut(page); await signIn(page, 'coordinator@example.test'); await page.goto('/account/coordinator')
   await expect(page.getByText('UTR-PLAYWRIGHT-1')).toBeVisible(); await page.getByRole('button', { name: 'Reject' }).first().click()
-  await page.getByRole('button', { name: 'Sign out' }).click(); await signIn(page, 'member@example.test'); await page.goto('/reunion/fund')
+  await signOut(page); await signIn(page, 'member@example.test'); await page.goto('/reunion/fund')
   await page.getByLabel('Amount paid (₹)').fill('30000'); await page.getByLabel('UTR / transaction ID').fill('UTR-PLAYWRIGHT-2'); await page.getByLabel('Payment date').fill('2027-01-06')
   await page.getByRole('button', { name: 'Submit for review' }).click(); await expect(page.getByRole('status')).toContainText('submitted')
 })
@@ -68,7 +77,7 @@ test('members can comment and report a memory, then a Coordinator moderates it',
   await page.getByLabel('Comment').fill('Great memory'); await page.getByRole('button', { name: 'Comment' }).click()
   await expect(page.getByRole('status')).toContainText('Comment added')
   await page.getByRole('button', { name: 'Report' }).click(); await expect(page.getByRole('status')).toContainText('Report sent')
-  await page.getByRole('button', { name: 'Sign out' }).click(); await signIn(page, 'coordinator@example.test'); await page.goto('/memories')
+  await signOut(page); await signIn(page, 'coordinator@example.test'); await page.goto('/memories')
   await expect(page.getByText('Open moderation reports')).toBeVisible(); await page.getByRole('button', { name: 'Hide' }).click()
   await expect(page.getByRole('status')).toContainText('hidden')
 })

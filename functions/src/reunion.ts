@@ -1,6 +1,7 @@
 import { FieldValue } from "firebase-admin/firestore"
 import { HttpsError, onCall } from "firebase-functions/v2/https"
 import { db, requireActiveMember, requireBatchId, requireCoordinator, requireUid } from "./shared.js"
+import { notify } from './notifications.js'
 
 export const submitRsvp = onCall(async (request) => {
   const { batchId, attendance, accompanyingAdults, accompanyingChildren, foodPreference, hotelRequired, miscellaneousDetails } = request.data as Record<string, unknown>
@@ -36,5 +37,6 @@ export const reopenRsvp = onCall(async (request) => {
     transaction.set(rsvpRef, { uid: memberUid, batchId, reopenedBy: actorUid, reopenedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() }, { merge: true })
     transaction.create(db.collection(`batches/${batchId}/auditEvents`).doc(), { actorUid, action: 'rsvp.reopened', targetUid: memberUid, createdAt: FieldValue.serverTimestamp(), outcome: 'success' })
   })
+  await notify(batchId, memberUid, 'rsvp', 'RSVP reopened', 'A Coordinator reopened your RSVP so you can update it.')
   return { reopened: true }
 })

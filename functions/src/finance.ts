@@ -1,6 +1,7 @@
 import { FieldValue } from "firebase-admin/firestore"
 import { HttpsError, onCall } from "firebase-functions/v2/https"
 import { db, requireActiveMember, requireBatchId, requireCoordinator, requirePaise, requireText, requireUid } from "./shared.js"
+import { notify } from './notifications.js'
 
 const expenseCategories = new Set(['venue', 'accommodation', 'food', 'transport', 'programme', 'administration', 'contingency', 'other'])
 const financialRetentionUntil = new Date('2034-01-08T00:00:00.000Z')
@@ -65,6 +66,7 @@ export const reviewPaymentClaim = onCall(async (request) => {
   if (note !== undefined && (typeof note !== 'string' || note.length > 1000)) throw new HttpsError('invalid-argument', 'Review note is invalid.')
   const actorUid = requireUid(request.auth)
   await requireCoordinator(batchId, request.auth)
+  const claim = await db.doc(`batches/${batchId}/paymentClaims/${claimId}`).get()
   await db.runTransaction(async (transaction) => {
     const claimRef = db.doc(`batches/${batchId}/paymentClaims/${claimId}`)
     const claim = await transaction.get(claimRef)
@@ -74,6 +76,8 @@ export const reviewPaymentClaim = onCall(async (request) => {
     transaction.update(claimRef, { status, reviewedBy: actorUid, reviewedAt: FieldValue.serverTimestamp(), ...(status === 'rejected' ? { rejectionReason: note ?? 'Unable to verify this payment.' } : {}), ...(status === 'underReview' ? { clarificationNote: note ?? 'Coordinator is reviewing this payment.' } : {}), updatedAt: FieldValue.serverTimestamp() })
     transaction.create(db.collection(`batches/${batchId}/auditEvents`).doc(), { actorUid, action: `payment.${status}`, targetUid: claim.data()?.memberUid, targetId: claimId, createdAt: FieldValue.serverTimestamp(), outcome: 'success' })
   })
+  const memberUid = claim.data()?.memberUid
+  if (typeof memberUid === 'string') await notify(batchId, memberUid, 'payment', `Payment ${status}`, status === 'verified' ? 'Your payment has been verified.' : status === 'underReview' ? 'A Coordinator is reviewing your payment.' : 'Your payment needs correction. Please review and resubmit it.')
   return { reviewed: true }
 })
 

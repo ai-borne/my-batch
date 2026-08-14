@@ -122,3 +122,32 @@ describe('Phase 5 archive callables', () => {
     expect(audits.docs.map((doc) => doc.data())).toEqual(expect.arrayContaining([expect.objectContaining({ actorUid: coordinatorUid, targetId: 'post-a' })]))
   })
 })
+
+describe('Phase 6 notification callables', () => {
+  it('delivers announcements and payment outcomes only to the affected active members', async () => {
+    const coordinator = await signIn('notification-coordinator@example.test')
+    const member = await signIn('notification-member@example.test')
+    const coordinatorUid = coordinator.auth.currentUser!.uid; const memberUid = member.auth.currentUser!.uid
+    await adminDb.doc(`batches/${batchId}/memberships/${coordinatorUid}`).set({ uid: coordinatorUid, status: 'active', role: 'coordinator' })
+    await adminDb.doc(`batches/${batchId}/memberships/${memberUid}`).set({ uid: memberUid, status: 'active', role: 'batchmate' })
+    await coordinator.call('publishAnnouncement', { batchId, title: 'Venue confirmed', body: 'Meet at 10am.' })
+    const announcements = await adminDb.collection(`batches/${batchId}/notifications/${memberUid}/items`).where('kind', '==', 'announcement').get()
+    expect(announcements.docs.map((item) => item.data())).toEqual(expect.arrayContaining([expect.objectContaining({ title: 'Venue confirmed', body: 'Meet at 10am.' })]))
+    await adminDb.doc(`batches/${batchId}/paymentClaims/claim`).set({ memberUid, status: 'submitted', amountPaise: 100 })
+    await coordinator.call('reviewPaymentClaim', { batchId, claimId: 'claim', status: 'rejected' })
+    const payments = await adminDb.collection(`batches/${batchId}/notifications/${memberUid}/items`).where('kind', '==', 'payment').get()
+    expect(payments.docs.map((item) => item.data())).toEqual(expect.arrayContaining([expect.objectContaining({ title: 'Payment rejected' })]))
+  })
+
+  it('does not let a member acknowledge someone else’s notifications', async () => {
+    const member = await signIn('notification-self@example.test')
+    const other = await signIn('notification-other@example.test')
+    const memberUid = member.auth.currentUser!.uid; const otherUid = other.auth.currentUser!.uid
+    await adminDb.doc(`batches/${batchId}/memberships/${memberUid}`).set({ uid: memberUid, status: 'active', role: 'batchmate' })
+    await adminDb.doc(`batches/${batchId}/memberships/${otherUid}`).set({ uid: otherUid, status: 'active', role: 'batchmate' })
+    await adminDb.doc(`batches/${batchId}/notifications/${memberUid}/items/own`).set({ title: 'Own', body: 'Body', kind: 'rsvp' })
+    await member.call('markNotificationsRead', { batchId, notificationIds: ['own'] })
+    expect((await adminDb.doc(`batches/${batchId}/notifications/${memberUid}/items/own`).get()).data()?.readAt).toBeDefined()
+    await expect(other.call('markNotificationsRead', { batchId, notificationIds: ['own'] })).rejects.toMatchObject({ code: 'functions/internal' })
+  })
+})

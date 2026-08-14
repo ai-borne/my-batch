@@ -27,4 +27,5 @@ module.exports = async () => {
   await db.doc(`batches/${batchId}/accessRequests/rejected`).set({ uid: 'rejected', batchId, displayName: 'Rejected Member', houseId: 'tilak', passingYear: 2002, status: 'rejected', rejectionReason: 'Use your full name.', rejectedBy: 'coordinator' })
   await db.doc(`batches/${batchId}/paymentConfig/current`).set({ currency: 'INR', upiId: 'collection@upi', accountLabel: 'Reunion collection', defaultFamilyAmountPaise: 3000000, targetPaise: 5000000, contributionHeads: ['Reunion contribution'], qrStoragePath: `batches/${batchId}/reunion/qr/placeholder.png`, updatedBy: 'coordinator', updatedAt: new Date() })
   await db.doc(`batches/${batchId}/posts/archive-post`).set({ authorUid: 'member', caption: 'Archive test memory', media: [], status: 'visible', createdAt: new Date(), updatedAt: new Date() })
+  await db.doc(`batches/${batchId}/notifications/member/items/welcome`).set({ kind: 'announcement', title: 'Welcome back', body: 'Reunion updates appear here.', createdAt: new Date() })
 }
