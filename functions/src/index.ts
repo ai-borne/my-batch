@@ -1,6 +1,6 @@
 export { addArchiveMedia, cleanupArchiveOrphans, createAlbum, createPost, deleteOwnComment, deleteOwnPost, executeArchiveRetention, manageAlbum, moderateArchiveContent, reportArchiveContent, saveArchiveComment, setArchiveLike, updateOwnPost } from './archive.js'
 export { approveMembership, manageMembership, rejectMembership, requestProfileDataChange } from './membership.js'
-export { assignCoordinator } from './admin.js'
+export { assignCoordinator, executeAuditRetention, listGovernanceAuditEvents, listGovernanceMembers } from './admin.js'
 export { reopenRsvp, submitRsvp } from './reunion.js'
 export { attachExpenseReceipt, attachPaymentEvidence, rebuildFundSummary, reviewExpense, reviewPaymentClaim, saveExpense, submitPaymentClaim } from './finance.js'
 export { markNotificationsRead, publishAnnouncement } from './notifications.js'

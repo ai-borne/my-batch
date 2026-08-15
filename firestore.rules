@@ -48,7 +48,7 @@ service cloud.firestore {
       match /paymentClaims/{claimId} { allow read: if coordinator(batchId); allow write: if false; }
       match /fundSummary/public { allow read: if active(batchId); allow write: if false; }
       match /expenses/{expenseId} { allow read: if coordinator(batchId) || (active(batchId) && resource.data.status == 'approved'); allow write: if false; }
-      match /auditEvents/{eventId} { allow read: if coordinator(batchId); allow write: if false; }
+      match /auditEvents/{eventId} { allow read, write: if false; }
       match /posts/{postId} {
         allow read: if active(batchId) && resource.data.status == 'visible';
         allow write: if false;

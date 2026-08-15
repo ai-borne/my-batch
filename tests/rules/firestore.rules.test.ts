@@ -45,6 +45,11 @@ describe('private batch boundaries', () => {
     await assertFails(member.doc('batches/batch-a/paymentClaims/new').set({ status: 'verified' }))
     await assertFails(coordinator.doc('batches/batch-a/auditEvents/new').set({ action: 'finance.verified' }))
   })
+  it('keeps audit events unreadable to every browser client, including Coordinators', async () => {
+    await environment.withSecurityRulesDisabled(async (context) => context.firestore().doc('batches/batch-a/auditEvents/event').set({ action: 'coordinator.assigned' }))
+    await assertFails(db('member').doc('batches/batch-a/auditEvents/event').get())
+    await assertFails(db('coordinator').doc('batches/batch-a/auditEvents/event').get())
+  })
   it('does not permit a client to grant a Coordinator role', async () => { const member = db('member'); await assertFails(member.doc('batches/batch-a/memberships/member').set({ status: 'active', role: 'coordinator' })) })
   it('does not give a Super Admin claim direct batch access or role-write access', async () => {
     const superAdmin = environment.authenticatedContext('super-admin', { superAdmin: true }).firestore()

@@ -1,6 +1,7 @@
 import { deleteApp, initializeApp } from 'firebase/app'
-import { Auth, connectAuthEmulator, createUserWithEmailAndPassword, getAuth, signInWithEmailAndPassword } from 'firebase/auth'
+import { connectAuthEmulator, createUserWithEmailAndPassword, getAuth } from 'firebase/auth'
 import { connectFunctionsEmulator, getFunctions, httpsCallable } from 'firebase/functions'
+import { getAuth as getAdminAuth } from 'firebase-admin/auth'
 import { initializeApp as initializeAdminApp, getApps } from 'firebase-admin/app'
 import { getFirestore } from 'firebase-admin/firestore'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
@@ -63,6 +64,67 @@ describe('membership callables', () => {
     expect((await adminDb.doc(`batches/${batchId}/accessRequests/${requesterUid}`).get()).data()).toMatchObject({ status: 'rejected', rejectedBy: coordinatorUid, rejectionReason: 'Use your full name.' })
     await expect(requester.call('manageMembership', { batchId, memberUid: requesterUid, action: 'suspend' })).rejects.toMatchObject({ code: 'functions/permission-denied' })
     await expect(otherCoordinator.call('manageMembership', { batchId, memberUid: requesterUid, action: 'suspend' })).rejects.toMatchObject({ code: 'functions/permission-denied' })
+  })
+})
+
+describe('Super Admin governance callables', () => {
+  async function makeSuperAdmin(client: Awaited<ReturnType<typeof signIn>>) {
+    await getAdminAuth(adminApp).setCustomUserClaims(client.auth.currentUser!.uid, { superAdmin: true })
+    await client.auth.currentUser!.getIdToken(true)
+  }
+
+  it('requires a reason, preserves no-ops, and writes a complete non-PII governance audit event', async () => {
+    const superAdmin = await signIn('governance-admin@example.test')
+    const member = await signIn('governance-member@example.test')
+    const superAdminUid = superAdmin.auth.currentUser!.uid
+    const memberUid = member.auth.currentUser!.uid
+    await makeSuperAdmin(superAdmin)
+    await adminDb.doc(`batches/${batchId}/memberships/${memberUid}`).set({ uid: memberUid, status: 'active', role: 'batchmate', memberCode: 'batch-a-100' })
+
+    await expect(superAdmin.call('assignCoordinator', { batchId, memberUid, action: 'assign' })).rejects.toMatchObject({ code: 'functions/invalid-argument' })
+    await superAdmin.call('assignCoordinator', { batchId, memberUid, action: 'assign', reason: 'Regional coordination coverage' })
+    expect((await adminDb.doc(`batches/${batchId}/memberships/${memberUid}`).get()).data()).toMatchObject({ role: 'coordinator' })
+    const audits = await adminDb.collection(`batches/${batchId}/auditEvents`).where('action', '==', 'coordinator.assigned').get()
+    expect(audits.docs.map((doc) => doc.data())).toEqual(expect.arrayContaining([expect.objectContaining({
+      actorUid: superAdminUid, targetUid: memberUid, batchId, action: 'coordinator.assigned', outcome: 'success',
+      reason: 'Regional coordination coverage', roleBefore: 'batchmate', roleAfter: 'coordinator', retentionUntil: expect.anything(),
+    })]))
+    await superAdmin.call('assignCoordinator', { batchId, memberUid, action: 'assign', reason: 'Repeat request' })
+    expect((await adminDb.collection(`batches/${batchId}/auditEvents`).where('action', '==', 'coordinator.assigned').get()).size).toBe(1)
+  })
+
+  it('denies self-assignment and inactive targets, and applies the high-impact role-change limit', async () => {
+    const superAdmin = await signIn('governance-limits@example.test')
+    const inactive = await signIn('governance-inactive@example.test')
+    const active = await signIn('governance-active@example.test')
+    await makeSuperAdmin(superAdmin)
+    const superAdminUid = superAdmin.auth.currentUser!.uid
+    await adminDb.doc(`batches/${batchId}/memberships/${inactive.auth.currentUser!.uid}`).set({ status: 'suspended', role: 'batchmate' })
+    await adminDb.doc(`batches/${batchId}/memberships/${active.auth.currentUser!.uid}`).set({ status: 'active', role: 'batchmate' })
+
+    await expect(superAdmin.call('assignCoordinator', { batchId, memberUid: superAdminUid, action: 'assign', reason: 'Not permitted' })).rejects.toMatchObject({ code: 'functions/failed-precondition' })
+    await expect(superAdmin.call('assignCoordinator', { batchId, memberUid: inactive.auth.currentUser!.uid, action: 'assign', reason: 'Not active' })).rejects.toMatchObject({ code: 'functions/failed-precondition' })
+    await superAdmin.call('assignCoordinator', { batchId, memberUid: active.auth.currentUser!.uid, action: 'assign', reason: 'Coverage' })
+    await superAdmin.call('assignCoordinator', { batchId, memberUid: active.auth.currentUser!.uid, action: 'assign', reason: 'No-op one' })
+    await expect(superAdmin.call('assignCoordinator', { batchId, memberUid: active.auth.currentUser!.uid, action: 'assign', reason: 'Rate limited' })).rejects.toMatchObject({ code: 'functions/resource-exhausted' })
+  })
+
+  it('allows only Super Admins to page the active directory and cross-feature audit log', async () => {
+    const superAdmin = await signIn('directory-admin@example.test')
+    const member = await signIn('directory-member@example.test')
+    await makeSuperAdmin(superAdmin)
+    const memberUid = member.auth.currentUser!.uid
+    await adminDb.doc(`batches/${batchId}/memberships/${memberUid}`).set({ uid: memberUid, status: 'active', role: 'coordinator', memberCode: 'batch-a-101' })
+    await adminDb.doc(`batches/${batchId}/profiles/${memberUid}`).set({ displayName: 'Directory Member' })
+    await adminDb.doc(`users/${memberUid}`).set({ email: 'directory.member@example.test' })
+    await adminDb.doc(`batches/${batchId}/auditEvents/event-a`).set({ actorUid: memberUid, targetUid: memberUid, batchId, action: 'coordinator.assigned', outcome: 'success', createdAt: new Date() })
+
+    const directory = await superAdmin.call<{ members: Array<{ uid: string; displayName?: string; email?: string; memberCode?: string }>; nextPageToken: string | null }>('listGovernanceMembers', { batchId, search: 'directory.member' })
+    expect(directory.data.members).toEqual(expect.arrayContaining([expect.objectContaining({ uid: memberUid, displayName: 'Directory Member', email: 'directory.member@example.test', memberCode: 'batch-a-101' })]))
+    const audit = await superAdmin.call<{ events: Array<{ action: string; actorUid: string }>; nextPageToken: string | null }>('listGovernanceAuditEvents', { batchId, action: 'coordinator.assigned' })
+    expect(audit.data.events).toEqual(expect.arrayContaining([expect.objectContaining({ action: 'coordinator.assigned', actorUid: memberUid })]))
+    await expect(member.call('listGovernanceMembers', { batchId })).rejects.toMatchObject({ code: 'functions/permission-denied' })
+    await expect(member.call('listGovernanceAuditEvents', { batchId })).rejects.toMatchObject({ code: 'functions/permission-denied' })
   })
 })
 

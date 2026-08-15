@@ -6,6 +6,8 @@ export const callablePolicies = {
   addArchiveMedia: { limit: 6, windowSeconds: 600, rationale: 'media verification is compute-intensive' },
   approveMembership: { limit: 5, windowSeconds: 600, rationale: 'membership changes are material' },
   assignCoordinator: { limit: 3, windowSeconds: 3600, rationale: 'role grants are high impact' },
+  listGovernanceAuditEvents: { limit: 30, windowSeconds: 600, rationale: 'audit browsing is sensitive' },
+  listGovernanceMembers: { limit: 30, windowSeconds: 600, rationale: 'directory browsing is sensitive' },
   attachExpenseReceipt: { limit: 10, windowSeconds: 600, rationale: 'receipt attachment is sensitive' },
   attachPaymentEvidence: { limit: 6, windowSeconds: 600, rationale: 'payment evidence is sensitive' },
   cleanupArchiveOrphans: { limit: 2, windowSeconds: 3600, rationale: 'cleanup scans batch storage' },
