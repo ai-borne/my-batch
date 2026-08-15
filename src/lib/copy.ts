@@ -7,6 +7,10 @@ export const COPY = {
   cancel: 'Cancel',
   working: 'Working…',
   dialogActionFailed: 'Could not complete that action. Please try again.',
+  coordinator: {
+    checkingAccess: 'Checking Coordinator access…',
+    accessChanged: 'Your Coordinator access is no longer available. Batch member access remains unchanged.',
+  },
   superAdmin: {
     label: 'Super Admin',
     title: 'Governance console',

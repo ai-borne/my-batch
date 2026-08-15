@@ -126,6 +126,29 @@ describe('Super Admin governance callables', () => {
     await expect(member.call('listGovernanceMembers', { batchId })).rejects.toMatchObject({ code: 'functions/permission-denied' })
     await expect(member.call('listGovernanceAuditEvents', { batchId })).rejects.toMatchObject({ code: 'functions/permission-denied' })
   })
+
+  it('applies Coordinator changes immediately without changing member, finance, or content data', async () => {
+    const superAdmin = await signIn('resilience-admin@example.test')
+    const candidate = await signIn('resilience-candidate@example.test')
+    const memberUid = candidate.auth.currentUser!.uid
+    await makeSuperAdmin(superAdmin)
+    await adminDb.doc(`batches/${batchId}/memberships/${memberUid}`).set({
+      uid: memberUid, status: 'active', role: 'batchmate', memberCode: 'batch-a-444', approvedBy: 'prior-coordinator', approvalStatus: 'approved',
+    })
+    await adminDb.doc(`batches/${batchId}/paymentClaims/claim-a`).set({ memberUid, amountPaise: 5000, status: 'verified' })
+    await adminDb.doc(`batches/${batchId}/posts/post-a`).set({ authorUid: memberUid, caption: 'School memory', status: 'visible' })
+
+    await superAdmin.call('assignCoordinator', { batchId, memberUid, action: 'assign', reason: 'Coverage' })
+    await candidate.call('manageMembership', { batchId, memberUid, action: 'assignHouse', houseId: 'tilak' })
+    await superAdmin.call('assignCoordinator', { batchId, memberUid, action: 'revoke', reason: 'Rotation complete' })
+    await expect(candidate.call('manageMembership', { batchId, memberUid, action: 'assignHouse', houseId: 'nehru' })).rejects.toMatchObject({ code: 'functions/permission-denied' })
+
+    expect((await adminDb.doc(`batches/${batchId}/memberships/${memberUid}`).get()).data()).toMatchObject({
+      uid: memberUid, status: 'active', role: 'batchmate', memberCode: 'batch-a-444', approvedBy: 'prior-coordinator', approvalStatus: 'approved', houseId: 'tilak',
+    })
+    expect((await adminDb.doc(`batches/${batchId}/paymentClaims/claim-a`).get()).data()).toEqual({ memberUid, amountPaise: 5000, status: 'verified' })
+    expect((await adminDb.doc(`batches/${batchId}/posts/post-a`).get()).data()).toEqual({ authorUid: memberUid, caption: 'School memory', status: 'visible' })
+  })
 })
 
 describe('Phase 4 finance callables', () => {

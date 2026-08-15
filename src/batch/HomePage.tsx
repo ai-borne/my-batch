@@ -1,10 +1,11 @@
 import { collection, doc, getDoc, getDocs, limit, orderBy, query, where } from 'firebase/firestore/lite'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { firebaseServices } from '../lib/firebase'
 import { PILOT_BATCH_ID } from '../lib/membership'
 import { aggregateHomeStats, countdownLabel, HOME_TIMELINE, type HomeMembership, type HomeProfile } from '../lib/home'
 import { PAGE_SIZE } from '../lib/pagination'
+import { COPY } from '../lib/copy'
 
 type TimestampValue = { toDate: () => Date }
 type HomePost = { id: string; caption?: string; authorName?: string; createdAt?: TimestampValue }
@@ -22,6 +23,7 @@ function readableError(error: unknown): HomeState['error'] {
 }
 
 export function HomePage() {
+  const location = useLocation()
   const [state, setState] = useState<HomeState>(initialState)
   const [loading, setLoading] = useState(true)
   useEffect(() => {
@@ -58,6 +60,7 @@ export function HomePage() {
 
   const reunionDate = state.reunionDate
   return <section className="page-stack">
+    {location.state?.coordinatorAccessChanged && <p className="panel" role="status">{COPY.coordinator.accessChanged}</p>}
     <div className="home-intro"><p className="eyebrow">Sainik School Satara · 2002 Batch</p><h1>Our batch,<br /><em>still together.</em></h1></div>
     <section className="home-reunion" aria-labelledby="countdown-heading"><p className="eyebrow">Silver Jubilee reunion</p><h2 id="countdown-heading">{reunionDate ? countdownLabel(reunionDate) : 'Date to be announced'}</h2><p>{reunionDate ? 'until we return to Satara.' : 'Reunion details will appear here when confirmed.'}</p><Link className="button-link" to="/reunion">View reunion <span aria-hidden="true">→</span></Link></section>
     <section className="home-stats" aria-label="Batch statistics">

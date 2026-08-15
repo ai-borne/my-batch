@@ -1,4 +1,4 @@
-import { createContext, ReactNode, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { GoogleAuthProvider, User, onAuthStateChanged, reauthenticateWithPopup, signInWithEmailAndPassword, signInWithPopup, signOut } from 'firebase/auth'
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore/lite'
 import { firebaseServices } from '../lib/firebase'
@@ -14,7 +14,7 @@ async function fetchMembership(uid: string): Promise<Membership> {
 }
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null); const [membership, setMembership] = useState<Membership | null>(null); const [isSuperAdmin, setIsSuperAdmin] = useState(false); const [loading, setLoading] = useState(true)
-  const refreshMembership = async () => { if (user) setMembership(await fetchMembership(user.uid)) }
+  const refreshMembership = useCallback(async () => { if (user) setMembership(await fetchMembership(user.uid)) }, [user])
   useEffect(() => {
     const { auth, db } = firebaseServices()
     return onAuthStateChanged(auth, async (nextUser) => {
@@ -30,7 +30,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false)
     })
   }, [])
-  const value = useMemo(() => ({ user, membership, isSuperAdmin, loading, refreshMembership, signIn: async () => { await signInWithPopup(firebaseServices().auth, new GoogleAuthProvider()) }, signInForE2E: async (email: string, password: string) => { if (import.meta.env.VITE_E2E_AUTH !== 'true') throw new Error('Test sign-in is unavailable.'); await signInWithEmailAndPassword(firebaseServices().auth, email, password) }, signOut: async () => { await clearPrivateAppCache(); await signOut(firebaseServices().auth) }, reauthenticate: async () => { if (!user) throw new Error('Sign in is required.'); if (import.meta.env.VITE_E2E_AUTH === 'true') { await user.getIdToken(true); return }; await reauthenticateWithPopup(user, new GoogleAuthProvider()); await user.getIdToken(true) } }), [user, membership, isSuperAdmin, loading])
+  const value = useMemo(() => ({ user, membership, isSuperAdmin, loading, refreshMembership, signIn: async () => { await signInWithPopup(firebaseServices().auth, new GoogleAuthProvider()) }, signInForE2E: async (email: string, password: string) => { if (import.meta.env.VITE_E2E_AUTH !== 'true') throw new Error('Test sign-in is unavailable.'); await signInWithEmailAndPassword(firebaseServices().auth, email, password) }, signOut: async () => { await clearPrivateAppCache(); await signOut(firebaseServices().auth) }, reauthenticate: async () => { if (!user) throw new Error('Sign in is required.'); if (import.meta.env.VITE_E2E_AUTH === 'true') { await user.getIdToken(true); return }; await reauthenticateWithPopup(user, new GoogleAuthProvider()); await user.getIdToken(true) } }), [user, membership, isSuperAdmin, loading, refreshMembership])
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 export function useAuth() { const state = useContext(AuthContext); if (!state) throw new Error('useAuth must be rendered within AuthProvider.'); return state }
