@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { canAccessMemberFlow, canAccessSuperAdminRoute, destinationForSession, hasSuperAdminClaim, shouldLoadMemberSession } from '../src/lib/authorization'
+import { auditTime } from '../src/superAdmin/governance'
 
 describe('Super Admin authorization routing', () => {
   it('recognizes only a boolean Firebase ID-token Super Admin claim', () => {
@@ -26,5 +27,9 @@ describe('Super Admin authorization routing', () => {
     expect(canAccessSuperAdminRoute(true, true)).toBe(true)
     expect(canAccessSuperAdminRoute(true, false)).toBe(false)
     expect(canAccessSuperAdminRoute(false, true)).toBe(false)
+  })
+
+  it('renders audit timestamps returned by callable JSON serialization', () => {
+    expect(auditTime({ seconds: 1_786_787_660, nanoseconds: 553_000_000 })).not.toBe('Timestamp pending')
   })
 })

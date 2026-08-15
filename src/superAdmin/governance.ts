@@ -4,7 +4,8 @@ import { PILOT_BATCH_ID } from '../lib/membership'
 import { COPY } from '../lib/copy'
 
 export type GovernanceMember = { uid: string; role?: string; displayName?: string; email?: string; memberCode?: string }
-export type AuditEvent = { id: string; action: string; actorUid: string; targetUid: string; reason: string; outcome?: string; roleBefore?: string; roleAfter?: string; createdAt?: number | { toMillis: () => number } }
+type AuditTimestamp = { toMillis?: () => number; seconds?: number; nanoseconds?: number; _seconds?: number; _nanoseconds?: number }
+export type AuditEvent = { id: string; action: string; actorUid: string; targetUid: string; reason: string; outcome?: string; roleBefore?: string; roleAfter?: string; createdAt?: number | AuditTimestamp }
 export type MemberPage = { members: GovernanceMember[]; nextPageToken: string | null }
 export type AuditPage = { events: AuditEvent[]; nextPageToken: string | null }
 export type AuditFilters = { action: string; actorUid: string; targetUid: string; from: string; to: string }
@@ -43,6 +44,8 @@ export async function assignCoordinator({ memberUid, action, reason }: { memberU
 }
 
 export function auditTime(value: AuditEvent['createdAt']) {
-  const milliseconds = typeof value === 'number' ? value : value?.toMillis()
+  const seconds = value && typeof value !== 'number' ? (value.seconds ?? value._seconds) : undefined
+  const nanoseconds = value && typeof value !== 'number' ? (value.nanoseconds ?? value._nanoseconds ?? 0) : 0
+  const milliseconds = typeof value === 'number' ? value : typeof value?.toMillis === 'function' ? value.toMillis() : typeof seconds === 'number' ? seconds * 1_000 + Math.floor(nanoseconds / 1_000_000) : undefined
   return milliseconds ? new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(milliseconds) : COPY.superAdmin.timestampPending
 }
