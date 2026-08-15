@@ -39,7 +39,7 @@ export const callablePolicies = {
 type CallableName = keyof typeof callablePolicies
 
 export const secureCall = (handler: (request: any) => Promise<unknown>) => onCall(
-  { enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== 'true' },
+  { enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== 'true' && process.env.FUNCTIONS_ENFORCE_APP_CHECK !== 'false' },
   async (request) => {
     try {
       return await handler(request)
