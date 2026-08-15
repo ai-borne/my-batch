@@ -8,8 +8,8 @@ const RETENTION_MONTHS = 24
 const DEFAULT_PAGE_SIZE = 25
 const MAXIMUM_PAGE_SIZE = 50
 
-function retentionUntil() { const date = new Date(); date.setMonth(date.getMonth() + RETENTION_MONTHS); return Timestamp.fromDate(date) }
-function requireSuperAdmin(auth: { token?: Record<string, unknown> } | undefined) { if (auth?.token?.superAdmin !== true) throw new HttpsError('permission-denied', 'Super Admin access is required.') }
+export function retentionUntil() { const date = new Date(); date.setMonth(date.getMonth() + RETENTION_MONTHS); return Timestamp.fromDate(date) }
+export function requireSuperAdmin(auth: { token?: Record<string, unknown> } | undefined) { if (auth?.token?.superAdmin !== true) throw new HttpsError('permission-denied', 'Super Admin access is required.') }
 function pageLimit(value: unknown) { if (value === undefined) return DEFAULT_PAGE_SIZE; if (!Number.isInteger(value) || Number(value) < 1 || Number(value) > MAXIMUM_PAGE_SIZE) throw new HttpsError('invalid-argument', 'pageSize is invalid.'); return Number(value) }
 function encodePageToken(value: Record<string, unknown>) { return Buffer.from(JSON.stringify(value)).toString('base64url') }
 function decodePageToken(value: unknown): Record<string, unknown> | undefined {
@@ -79,6 +79,11 @@ export const listGovernanceAuditEvents = secureCall(async (request) => {
 })
 
 export const executeAuditRetention = onSchedule('every day 03:30', async () => {
-  const cutoff = Timestamp.fromMillis(Date.now() - RETENTION_MONTHS * 31 * 24 * 60 * 60 * 1_000); const expired = await db.collectionGroup('auditEvents').where('createdAt', '<=', cutoff).limit(250).get(); const batch = db.batch(); expired.docs.forEach((event) => batch.delete(event.ref)); if (!expired.empty) await batch.commit()
-  console.info('Governance audit retention complete', { deleted: expired.size, retentionMonths: RETENTION_MONTHS })
+  let deleted = 0
+  while (true) {
+    const expired = await db.collectionGroup('auditEvents').where('retentionUntil', '<=', Timestamp.now()).limit(250).get()
+    if (expired.empty) break
+    const batch = db.batch(); expired.docs.forEach((event) => batch.delete(event.ref)); await batch.commit(); deleted += expired.size
+  }
+  console.info('Governance audit retention complete', { deleted, retentionMonths: RETENTION_MONTHS })
 })
