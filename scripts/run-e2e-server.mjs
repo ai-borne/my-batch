@@ -21,7 +21,7 @@ const environment = {
   VITE_FIREBASE_FUNCTIONS_EMULATOR_PORT: functionsPort,
 }
 
-const seedCommand = process.env.AJINKYANS_E2E_SEED === 'true' ? 'node scripts/seed-e2e.cjs && ' : ''
+const seedCommand = process.env.AJINKYANS_E2E_SEED === 'true' ? 'node scripts/seed-e2e.cjs && node scripts/wait-for-e2e-firestore.mjs && ' : ''
 const emulator = spawn('firebase', ['emulators:exec', '--config', config, '--only', 'auth,firestore,storage,functions', `${seedCommand}npm run dev -- --host 127.0.0.1 --port ${appPort}`], { detached: true, env: environment, stdio: 'inherit' })
 let stopping = false
 const stop = (signal) => {
