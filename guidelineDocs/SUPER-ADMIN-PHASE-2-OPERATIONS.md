@@ -2,11 +2,11 @@
 
 ## Audit retention and legacy backfill
 
-`executeAuditRetention` is a system-only scheduled Cloud Function. It runs daily at 03:30 and removes up to 250 `auditEvents` records whose server-created `createdAt` is at least 24 months old. It uses the Admin SDK, so browser clients cannot create, modify, read, or delete audit records.
+`executeAuditRetention` is a system-only scheduled Cloud Function. It runs daily at 03:30 and removes every eligible `auditEvents` record in 250-document batches, continuing until none remain. Eligibility is the centralized `retentionUntil` timestamp set when a retention-bound governance event is created. It uses the Admin SDK, so browser clients cannot create, modify, read, or delete audit records.
 
-New Coordinator role-change records also receive `retentionUntil` at creation. Existing audit records are intentionally not rewritten: the scheduled deletion uses their authoritative `createdAt` timestamp, which applies the same 24-month policy to legacy records without fabricating a migration timestamp. The first production deploy is the backfill activation point; each daily run processes the next bounded legacy batch until no eligible record remains.
+New Coordinator role-change and bootstrap-approval records receive `retentionUntil` at creation. Existing audit records without that field are intentionally not rewritten: an operator must assign the original event time through trusted Admin tooling and derive the approved retention deadline, or remove the record under the incident-retention policy. The application never infers that deadline from user data.
 
-Before deployment, verify that historical audit records have valid `createdAt` timestamps. Records without one must be reviewed by an operator and either assigned their original event time through trusted Admin tooling or removed according to the incident-retention policy; the application must never infer it from user data.
+Before deployment, verify that historical audit records have a valid `retentionUntil`. Records without one must be reviewed by an operator and either receive the approved retention deadline through trusted Admin tooling or be removed according to the incident-retention policy; the application must never infer it from user data.
 
 ## Data access
 

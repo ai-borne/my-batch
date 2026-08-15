@@ -51,9 +51,10 @@ describe('private batch boundaries', () => {
     await assertFails(db('coordinator').doc('batches/batch-a/auditEvents/event').get())
   })
   it('does not permit a client to grant a Coordinator role', async () => { const member = db('member'); await assertFails(member.doc('batches/batch-a/memberships/member').set({ status: 'active', role: 'coordinator' })) })
-  it('does not give a Super Admin claim direct batch access or role-write access', async () => {
+  it('does not give a Super Admin claim direct batch, pending-applicant, or role-write access', async () => {
     const superAdmin = environment.authenticatedContext('super-admin', { superAdmin: true }).firestore()
     await assertFails(superAdmin.doc('batches/batch-a/profiles/member').get())
+    await assertFails(superAdmin.doc('batches/batch-a/accessRequests/requester').get())
     await assertFails(superAdmin.doc('batches/batch-a/memberships/member').update({ role: 'coordinator' }))
   })
   it('allows only the requester to create a constrained access request', async () => {

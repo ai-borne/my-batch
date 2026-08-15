@@ -23,7 +23,7 @@ Use the Super Admin console to revoke the Coordinator role with a factual busine
 
 Review governance events at least monthly and after every role change or incident. Filter by coordinator assignment/revocation, actor UID, target UID, and time window; reconcile each event with the private approval record. Escalate an unmatched, unexpected, or missing event under the incident process.
 
-`executeAuditRetention` runs daily at 03:30, deletes at most 250 audit events per run whose server-created `createdAt` is at least 24 months old, and logs its deletion count. Each quarter, confirm scheduled invocation success, no repeated errors, the configured 24-month cutoff, and that the oldest eligible records are removed. Records missing `createdAt` require trusted operator review; do not invent a timestamp from member data.
+`executeAuditRetention` runs daily at 03:30, deletes audit events whose centralized `retentionUntil` has elapsed in 250-document batches until none remain, and logs its deletion count. Each quarter, confirm scheduled invocation success, no repeated errors, the configured 24-month retention deadline, and that all eligible records are removed. Records missing `retentionUntil` require trusted operator review; do not invent a deadline from member data.
 
 ## Incident response
 

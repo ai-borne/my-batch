@@ -83,8 +83,12 @@ describe('Coordinator bootstrap callables', () => {
     const adminOne = await signIn('admin-one'); const adminTwo = await signIn('admin-two'); const first = await signIn('first'); const second = await signIn('second'); await makeSuperAdmin(adminOne); await makeSuperAdmin(adminTwo)
     await pending(first.auth.currentUser!.uid, { displayName: 'A', rollNumber: 'PAGE-1', createdAt: Timestamp.fromMillis(1_000) }); await pending(second.auth.currentUser!.uid, { displayName: 'B', rollNumber: 'PAGE-2', createdAt: Timestamp.fromMillis(1_000) })
     const pageOne = await adminOne.call<{ candidates: Array<{ requestId: string; displayName: string; rollNumber: string; houseId: string | null }>; nextPageToken: string | null }>('listBootstrapCandidates', { batchId, pageSize: 1 })
-    expect(pageOne.data.candidates[0]).toEqual(expect.objectContaining({ displayName: expect.any(String), rollNumber: expect.any(String), houseId: 'tilak' }))
-    expect(pageOne.data.candidates[0]).not.toHaveProperty('email')
+    expect(pageOne.data.candidates[0]).toEqual({
+      requestId: expect.any(String),
+      displayName: expect.any(String),
+      rollNumber: expect.any(String),
+      houseId: 'tilak',
+    })
     const pageTwo = await adminOne.call<{ candidates: Array<{ requestId: string }>; nextPageToken: string | null }>('listBootstrapCandidates', { batchId, pageSize: 1, pageToken: pageOne.data.nextPageToken })
     expect(pageTwo.data.candidates[0].requestId).not.toBe(pageOne.data.candidates[0].requestId)
     await expect(adminOne.call('listBootstrapCandidates', { batchId, pageToken: 'not-a-token' })).rejects.toMatchObject({ code: 'functions/invalid-argument' })
@@ -96,6 +100,17 @@ describe('Coordinator bootstrap callables', () => {
     expect(attempts.filter((attempt) => attempt.status === 'rejected').map((attempt) => (attempt as PromiseRejectedResult).reason.code)).toEqual(['functions/failed-precondition'])
     expect((await adminDb.collection(`batches/${batchId}/memberships`).where('status', '==', 'active').where('role', '==', 'coordinator').get()).size).toBe(1)
     expect((await adminDb.collection(`batches/${batchId}/auditEvents`).where('action', '==', 'membership.bootstrapCoordinatorApproved').get()).size).toBe(1)
+  })
+
+  it('gives the bootstrap-created Coordinator immediate access to approve the remaining pending queue', async () => {
+    const admin = await signIn('admin-coordinator-tools'); const coordinator = await signIn('new-coordinator'); const nextApplicant = await signIn('next-applicant'); await makeSuperAdmin(admin)
+    const coordinatorUid = coordinator.auth.currentUser!.uid; const nextApplicantUid = nextApplicant.auth.currentUser!.uid
+    await pending(coordinatorUid, { rollNumber: 'COORD-100' })
+    await pending(nextApplicantUid, { rollNumber: 'NEXT-100' })
+
+    await admin.call('bootstrapCoordinator', { batchId, requestId: coordinatorUid, reason: 'Restore membership review coverage.', operationId: 'coordinator-tools' })
+    await expect(coordinator.call('approveMembership', { batchId, requestId: nextApplicantUid })).resolves.toMatchObject({ data: { approved: true } })
+    expect((await adminDb.doc(`batches/${batchId}/memberships/${nextApplicantUid}`).get()).data()).toMatchObject({ status: 'active', role: 'batchmate', approvedBy: coordinatorUid })
   })
 
   it('limits high-impact bootstrap attempts per Super Admin', async () => {
