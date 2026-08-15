@@ -51,3 +51,33 @@ Remediation completed in this phase:
 ### Phase handoff
 
 All Phase 0 requirements are complete and verified. The E2E fixture/startup debt found during the phase was removed immediately; no Phase 0 technical debt is deferred. Product authorization, Super Admin routes, governance audit access, and console UI remain deliberately untouched until their respective later phases.
+
+## Phase 5 — Operations, Security Review, and Release Gate
+
+Completed in repository: 2026-08-15
+
+### Work completed and verified
+
+- Added the trusted offline Super Admin claim grant/revoke utility and the non-secret operating procedure for claim refresh, Coordinator offboarding, incident response, audit review, retention verification, rollback, and deployment checks.
+- Added a Super Admin-specific security review and test coverage that prevents the operating procedure and offline-claim safeguards from being removed silently.
+- Corrected the Firebase Rules specification to match the enforced policy: audit events are unreadable and unwritable by every browser client, and only the claimed Super Admin audit callable may return them.
+- Resolved the plan's App Check conflict in favour of production enforcement, which is required by Phase 2 and the repository-wide callable baseline and is already covered by tests.
+
+### Technical debt and remediation
+
+The stale audit-read statement in the Rules specification was technical debt. It was corrected immediately. No deferred repository technical debt remains from this phase.
+
+### Verification results
+
+| Gate | Result |
+| --- | --- |
+| Production build | Passed: `npm run build` |
+| Unit/component and release-control tests | Passed: `npm test` (49 tests), `npm run test:coverage`, `npm run test:architecture`, `npm run release:controls` |
+| Firestore/Storage Rules | Passed: `npm run test:rules` (21 tests) |
+| Callable integration | Passed: `npm run test:functions` |
+| Browser E2E | Passed: `npm run test:e2e` (14 tests) |
+| Production dependency audit | Passed: `npm audit --omit=dev --audit-level=high` (0 vulnerabilities) |
+
+### Phase handoff
+
+The repository implementation and release controls for Phase 5 are complete. Production deployment remains intentionally blocked until private operator evidence exists for trusted IAM review, real-traffic App Check validation, backup plus isolated restore, alert delivery, release-owner approval, and the deploy itself. Those external actions are release prerequisites, not deferred repository technical debt.

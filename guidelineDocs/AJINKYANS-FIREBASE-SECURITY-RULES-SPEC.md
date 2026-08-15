@@ -139,7 +139,7 @@ validBatchId(batchId)
 ### Configuration, announcements, and audit
 
 - Reunion configuration, schedule, contacts, announcements, and RSVP cutoff: Coordinator write; active members read published records.
-- `auditEvents/{eventId}`: Coordinators may read according to operational need; client writes are denied. Trusted backend creates immutable audit events.
+- `auditEvents/{eventId}`: Every browser client, including Coordinators and Super Admins, is denied read and write access. Trusted backend creates immutable audit events; claimed Super Admins inspect them only through the authorized paginated callable.
 - Audit events must record actor UID, batch ID, action, target path/type, timestamp, and outcome without copying sensitive payment evidence into logs.
 
 ## Storage Rules requirements
