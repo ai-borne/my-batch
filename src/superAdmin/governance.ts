@@ -10,7 +10,8 @@ export type AuditPage = { events: AuditEvent[]; nextPageToken: string | null }
 export type AuditFilters = { action: string; actorUid: string; targetUid: string; from: string; to: string }
 
 function call<T>(name: string, data: Record<string, unknown>) {
-  return httpsCallable<Record<string, unknown>, T>(firebaseServices().functions, name)({ batchId: PILOT_BATCH_ID, requestId: crypto.randomUUID(), ...data })
+  const payload = Object.fromEntries(Object.entries({ batchId: PILOT_BATCH_ID, requestId: crypto.randomUUID(), ...data }).filter(([, value]) => value !== undefined))
+  return httpsCallable<Record<string, unknown>, T>(firebaseServices().functions, name)(payload)
 }
 
 function timestamp(value: string, endOfDay = false) {
