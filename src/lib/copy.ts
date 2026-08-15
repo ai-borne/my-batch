@@ -7,4 +7,10 @@ export const COPY = {
   cancel: 'Cancel',
   working: 'Working…',
   dialogActionFailed: 'Could not complete that action. Please try again.',
+  superAdmin: {
+    label: 'Super Admin',
+    title: 'Governance console',
+    placeholder: 'Coordinator governance and audit visibility will be available here soon.',
+    signOut: 'Sign out securely',
+  },
 } as const

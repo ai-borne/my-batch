@@ -12,7 +12,7 @@ test('mobile landing exposes the installable app metadata without private conten
 })
 
 test('a Coordinator test sign-in reaches Home and can approve a pending request', async ({ page }) => {
-  await signIn(page, 'coordinator@example.test'); await page.goto('/admin'); await expect(page.getByText('Pending Member')).toBeVisible()
+  await signIn(page, 'coordinator@example.test'); await page.goto('/admin'); await expect(page).toHaveURL(/\/home$/); await page.goto('/account/coordinator'); await expect(page.getByText('Pending Member')).toBeVisible()
   const reject = page.getByRole('button', { name: 'Reject' }).first(); await reject.click(); const dialog = page.getByRole('alertdialog', { name: 'Reject access request' }); await dialog.getByLabel('Reason for rejection').fill('Please confirm your full name.'); await dialog.getByRole('button', { name: 'Cancel' }).click(); await expect(reject).toBeFocused()
   await page.getByRole('button', { name: 'Approve' }).click(); await expect(page.getByRole('status')).toHaveText('Member approved.')
 })
