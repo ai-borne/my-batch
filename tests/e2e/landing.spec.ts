@@ -54,6 +54,23 @@ test('mobile notification centre is keyboard-accessible and displays member-scop
   await expect(page.getByRole('region', { name: 'Notification centre' })).toContainText('Welcome back')
 })
 
+test('critical member controls retain accessible landmarks, keyboard operation, reflow, reduced motion, and touch targets', async ({ page }) => {
+  await page.setViewportSize({ width: 640, height: 900 })
+  await signIn(page, 'coordinator@example.test'); await page.goto('/home')
+  await expect(page.getByRole('main')).toBeVisible()
+  await expect(page.getByRole('navigation', { name: 'Batch navigation' })).toBeVisible()
+  const reunion = page.getByRole('link', { name: 'View reunion' })
+  await reunion.focus(); await expect(reunion).toBeFocused(); await page.keyboard.press('Enter')
+  await expect(page).toHaveURL(/\/reunion$/)
+  expect(await page.locator('body').evaluate((body) => body.scrollWidth <= body.clientWidth)).toBe(true)
+  expect(await page.locator('.topbar-actions button, .desktop-nav a, .bottom-nav a, .button-link').evaluateAll((controls) => controls.filter((control) => control.getClientRects().length > 0).filter((control) => {
+    const bounds = control.getBoundingClientRect()
+    return bounds.width < 44 || bounds.height < 44
+  }).map((control) => (control as HTMLElement).innerText || control.getAttribute('aria-label')))).toEqual([])
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  expect(Number.parseFloat(await page.locator('.app').evaluate((app) => getComputedStyle(app).transitionDuration))).toBeLessThanOrEqual(0.00001)
+})
+
 test('Coordinator tools live under Account and are hidden from batchmates', async ({ page }) => {
   await signIn(page, 'coordinator@example.test'); await page.goto('/account')
   await expect(page.getByRole('link', { name: 'Open Coordinator tools' })).toBeVisible()

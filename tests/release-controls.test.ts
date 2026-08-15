@@ -14,6 +14,9 @@ describe('Phase 7 release controls', () => {
     expect(seedScript).toContain("deploymentEnvironment !== 'staging'")
     expect(seedScript).toContain("/staging/i.test(projectId)")
     expect(seedScript).toContain('--confirm-demo-seed')
+    expect(seedScript).toContain('const memberCount = 50')
+    expect(seedScript).toContain('const listFixtureCount = 30')
+    expect(seedScript).toContain('isDemo: true')
   })
 
   test('requires App Check for production clients and records the private operational gates', () => {

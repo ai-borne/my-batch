@@ -50,3 +50,13 @@ Reviewed changed query paths, media processing, Storage cleanup, scheduled reten
 3. Run the documented representative 4G, non-media mobile screen measurement on the selected physical device and record a result of at most three seconds to first usable content.
 
 Until those three external evidence items exist, GS-2 is not eligible to advance to GS-3.
+
+## Staging evidence record
+
+The release owner records these in the private operator record only; retain references here, never project IDs, alert destinations, credentials, account identifiers, user data, or media.
+
+| Gate | Required private record | Repository-safe result reference |
+| --- | --- | --- |
+| Synthetic index/pagination | Date, operator, staging alias, synthetic dataset size, each inventory query/page result, and confirmation of no missing-index prompt | `GS-2-STAGING-INDEX-<date>` |
+| Cost alert acknowledgement | Date, metric/service, 80% threshold, redacted correlation ID, primary/backup receiver roles, and acknowledgement duration | `GS-2-ALERT-<date>` |
+| Representative 4G performance | Date, device/browser, network profile, non-media screen, first-usable-content measurement, and pass/fail against <=3 seconds | `GS-2-PERF-<date>` |

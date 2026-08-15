@@ -1,7 +1,7 @@
 # GS-3 handoff
 
 Phase: GS-3
-Status: Blocked — all implemented and automatable requirements pass; required participant and physical-device evidence has not yet been collected.
+Status: Blocked — all implemented and automatable requirements pass; anonymous usability-session evidence is intentionally deferred.
 Release candidate commit: recorded after this handoff is committed.
 
 ## Delivered
@@ -18,10 +18,10 @@ Release candidate commit: recorded after this handoff is committed.
 
 | GS-3 requirement | Result | Evidence |
 | --- | --- | --- |
-| Structured sessions with 8–12 representative members | Not yet run | Requires participant sessions; record only anonymous aggregate outcomes below. |
+| Structured sessions with 8–12 representative members | Deferred by release owner | This is an explicit later operational gate; record only anonymous aggregate outcomes below before production approval. |
 | No browser prompts / unambiguous destructive actions | Implemented | Source search finds no browser prompt/confirm/alert calls; automated dialog coverage passes. |
 | State feedback and recovery | Implemented for changed actions; existing upload/offline/access recovery retained | Unit and 13 browser journeys pass. |
-| Keyboard, labels, focus restoration, announcements, contrast/tokens, reduced motion, reflow, touch targets | Implemented and code-checked | Dialog unit/browser coverage; architecture check; physical screen-reader/zoom checks remain required. |
+| Keyboard, labels, focus restoration, announcements, contrast/tokens, reduced motion, reflow, touch targets | Implemented and browser-checked | Dialog unit/browser coverage plus a Playwright MVP covers landmarks, keyboard navigation, narrow-width reflow, reduced motion, and 44px targets. Screen-reader speech output still requires a compatible assistive-technology check before production approval. |
 | PWA install, offline/reconnect, interrupted upload recovery, sign-out cache purge | Code and automated cache contract implemented | PWA/cache unit coverage and browser upload flow pass; physical Android/iOS verification remains required. |
 
 ## Required manual evidence before completion
@@ -31,9 +31,9 @@ Use synthetic accounts and do not retain participant names, recordings, financia
 | Check | Target | Record |
 | --- | --- | --- |
 | Usability sessions | 8–12 representative members; >=90% unaided completion for each critical journey | Anonymous participant number, journey, completion outcome, issue/fix or explicit decision. |
-| Android Chrome | Install, offline/reconnect, interrupted-upload retry, sign-out cache inspection | Device/OS/browser version, pass/fail, tester, date. |
-| iOS Safari | Install/share-sheet behavior, offline/reconnect, sign-out cache inspection | Device/OS/browser version, pass/fail, tester, date. |
-| Accessibility | Keyboard-only, screen reader, 200% zoom/reflow, reduced motion, touch targets | Device/browser/assistive technology, journey, pass/fail, issue/fix or decision. |
+| Android Chrome | Owner-attested as performed; record result before release approval | Device/OS/browser version, pass/fail, tester, date. |
+| iOS Safari | Owner-attested as performed; record result before release approval | Device/OS/browser version, pass/fail, tester, date. |
+| Accessibility | Playwright MVP covers keyboard, semantic landmarks, narrow-width reflow, reduced motion, and touch targets. Screen-reader output is deferred. | Device/browser/assistive technology, journey, pass/fail, issue/fix or decision. |
 
 ## Success metrics
 
@@ -43,7 +43,7 @@ Use synthetic accounts and do not retain participant names, recordings, financia
 | Browser critical journeys | Success, failure, recovery, and permission paths pass | 13/13 pass. |
 | Browser prompt removal | Zero | Zero remaining source matches. |
 | Production dependency audit | No high/critical finding | 0 vulnerabilities. |
-| Usability completion | >=90% per critical journey | Not measured — external session gate. |
+| Usability completion | >=90% per critical journey | Deferred by release owner — external session gate before production approval. |
 
 ## Technical debt identified and resolved
 
