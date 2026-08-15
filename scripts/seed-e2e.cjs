@@ -6,7 +6,7 @@ async function seedE2E() {
   const app = getApps().length ? getApps()[0] : initializeApp({ projectId: 'demo-no-project' })
   const auth = getAuth(app)
   const db = getFirestore(app)
-  const batchId = 'batch-2002-3711'
+  const batchId = 'sssatara-2002'
   const users = [
     ['coordinator', 'coordinator@example.test'],
     ['member', 'member@example.test'],

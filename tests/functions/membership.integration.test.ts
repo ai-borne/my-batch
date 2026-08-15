@@ -37,12 +37,13 @@ describe('membership callables', () => {
     const coordinatorUid = coordinator.auth.currentUser!.uid
     const requesterUid = requester.auth.currentUser!.uid
     await adminDb.doc(`batches/${batchId}/memberships/${coordinatorUid}`).set({ uid: coordinatorUid, status: 'active', role: 'coordinator' })
-    await adminDb.doc(`batches/${batchId}/accessRequests/${requesterUid}`).set({ uid: requesterUid, status: 'pending', displayName: 'Requester', houseId: 'tilak', passingYear: 2002 })
+    await adminDb.doc(`batches/${batchId}/accessRequests/${requesterUid}`).set({ uid: requesterUid, status: 'pending', displayName: 'Requester', houseId: 'tilak', rollNumber: '3711', passingYear: 2002 })
 
     await coordinator.call('approveMembership', { batchId, requestId: requesterUid })
 
     await expect(adminDb.doc(`batches/${batchId}/memberships/${requesterUid}`).get()).resolves.toMatchObject({ exists: true })
-    expect((await adminDb.doc(`batches/${batchId}/memberships/${requesterUid}`).get()).data()).toMatchObject({ uid: requesterUid, status: 'active', role: 'batchmate', approvedBy: coordinatorUid })
+    expect((await adminDb.doc(`batches/${batchId}/memberships/${requesterUid}`).get()).data()).toMatchObject({ uid: requesterUid, status: 'active', role: 'batchmate', memberCode: 'batch-a-3711', approvedBy: coordinatorUid })
+    expect((await adminDb.doc(`batches/${batchId}/memberCodes/batch-a-3711`).get()).data()).toMatchObject({ uid: requesterUid, memberCode: 'batch-a-3711' })
     const audits = await adminDb.collection(`batches/${batchId}/auditEvents`).where('action', '==', 'membership.approved').get()
     expect(audits.docs.map((item) => item.data())).toEqual(expect.arrayContaining([expect.objectContaining({ actorUid: coordinatorUid, targetUid: requesterUid, batchId, outcome: 'success' })]))
   })
@@ -56,7 +57,7 @@ describe('membership callables', () => {
     const otherCoordinatorUid = otherCoordinator.auth.currentUser!.uid
     await adminDb.doc(`batches/${batchId}/memberships/${coordinatorUid}`).set({ uid: coordinatorUid, status: 'active', role: 'coordinator' })
     await adminDb.doc(`batches/batch-b/memberships/${otherCoordinatorUid}`).set({ uid: otherCoordinatorUid, status: 'active', role: 'coordinator' })
-    await adminDb.doc(`batches/${batchId}/accessRequests/${requesterUid}`).set({ uid: requesterUid, status: 'pending', displayName: 'Requester', houseId: 'tilak', passingYear: 2002 })
+    await adminDb.doc(`batches/${batchId}/accessRequests/${requesterUid}`).set({ uid: requesterUid, status: 'pending', displayName: 'Requester', houseId: 'tilak', rollNumber: '3712', passingYear: 2002 })
 
     await coordinator.call('rejectMembership', { batchId, requestId: requesterUid, reason: 'Use your full name.' })
     expect((await adminDb.doc(`batches/${batchId}/accessRequests/${requesterUid}`).get()).data()).toMatchObject({ status: 'rejected', rejectedBy: coordinatorUid, rejectionReason: 'Use your full name.' })

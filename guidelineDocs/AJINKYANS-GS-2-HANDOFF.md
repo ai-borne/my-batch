@@ -60,3 +60,5 @@ The release owner records these in the private operator record only; retain refe
 | Synthetic index/pagination | Date, operator, staging alias, synthetic dataset size, each inventory query/page result, and confirmation of no missing-index prompt | `GS-2-STAGING-INDEX-<date>` |
 | Cost alert acknowledgement | Date, metric/service, 80% threshold, redacted correlation ID, primary/backup receiver roles, and acknowledgement duration | `GS-2-ALERT-<date>` |
 | Representative 4G performance | Date, device/browser, network profile, non-media screen, first-usable-content measurement, and pass/fail against <=3 seconds | `GS-2-PERF-<date>` |
+
+After seeding, the operator runs the guarded pagination verifier with the same staging-only environment variables: `npm run verify:staging-pagination`. It proves a full first page and a non-empty continuation page for every query in the inventory without printing member, financial, or project data.

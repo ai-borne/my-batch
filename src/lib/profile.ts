@@ -2,7 +2,7 @@ import type { HouseId } from './types'
 
 export type SocialLinks = { linkedin?: string; instagram?: string; website?: string }
 export type MemberProfile = {
-  uid: string; displayName: string; city?: string; profession?: string; about?: string; favouriteSchoolMemory?: string
+  uid: string; displayName: string; memberCode?: string; city?: string; profession?: string; about?: string; favouriteSchoolMemory?: string
   teacherOrActivity?: string; houseId?: HouseId; avatarPath?: string; socialLinks?: SocialLinks
 }
 

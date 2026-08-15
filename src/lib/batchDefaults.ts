@@ -1,6 +1,6 @@
 import type { HouseId } from './types'
 
-export const PILOT_BATCH_ID = 'batch-2002-3711'
+export const PILOT_BATCH_ID = 'sssatara-2002'
 export const APP_TIME_ZONE = 'Asia/Kolkata'
 export const PASSING_YEAR = 2002
 export const HOUSES: ReadonlyArray<{ id: HouseId; name: string; group: 'Junior' | 'Senior' }> = [

@@ -53,15 +53,15 @@ describe('private batch boundaries', () => {
   })
   it('allows only the requester to create a constrained access request', async () => {
     const requester = db('requester')
-    const request = { uid: 'requester', batchId: 'batch-a', displayName: 'Requesting Member', houseId: 'tilak', passingYear: 2002, status: 'pending', createdAt: new Date(), updatedAt: new Date() }
+    const request = { uid: 'requester', batchId: 'batch-a', displayName: 'Requesting Member', houseId: 'tilak', rollNumber: '3711', passingYear: 2002, status: 'pending', createdAt: new Date(), updatedAt: new Date() }
     await assertSucceeds(requester.doc('batches/batch-a/accessRequests/requester').set(request))
     await assertFails(requester.doc('batches/batch-a/accessRequests/forged').set({ ...request, uid: 'member' }))
     await assertFails(requester.doc('batches/batch-a/accessRequests/invalid').set({ ...request, houseId: 'unknown' }))
   })
   it('allows rejected requests to be corrected and resubmitted without changing protected review fields', async () => {
-    await environment.withSecurityRulesDisabled(async (context) => context.firestore().doc('batches/batch-a/accessRequests/requester').set({ uid: 'requester', batchId: 'batch-a', displayName: 'Wrong Name', houseId: 'tilak', passingYear: 2002, status: 'rejected', rejectionReason: 'Please use your full name.', rejectedBy: 'coordinator', rejectedAt: new Date(), createdAt: new Date(), updatedAt: new Date() }))
+    await environment.withSecurityRulesDisabled(async (context) => context.firestore().doc('batches/batch-a/accessRequests/requester').set({ uid: 'requester', batchId: 'batch-a', displayName: 'Wrong Name', houseId: 'tilak', rollNumber: '3711', passingYear: 2002, status: 'rejected', rejectionReason: 'Please use your full name.', rejectedBy: 'coordinator', rejectedAt: new Date(), createdAt: new Date(), updatedAt: new Date() }))
     const requester = db('requester')
-    await assertSucceeds(requester.doc('batches/batch-a/accessRequests/requester').update({ displayName: 'Correct Name', status: 'pending', resubmittedAt: new Date(), updatedAt: new Date() }))
+    await assertSucceeds(requester.doc('batches/batch-a/accessRequests/requester').update({ displayName: 'Correct Name', rollNumber: '3712', status: 'pending', resubmittedAt: new Date(), updatedAt: new Date() }))
     await assertFails(requester.doc('batches/batch-a/accessRequests/requester').update({ rejectionReason: 'forged' }))
   })
   it('lets a member edit only their own profile without changing their house', async () => {

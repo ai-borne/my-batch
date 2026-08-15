@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, test } from 'vitest'
 
 const seedScript = readFileSync('scripts/seed-staging.mjs', 'utf8')
+const paginationVerifier = readFileSync('scripts/verify-staging-pagination.mjs', 'utf8')
 const firebaseClient = readFileSync('src/lib/firebase.ts', 'utf8')
 const operations = readFileSync('guidelineDocs/AJINKYANS-PHASE-7-OPERATIONS.md', 'utf8')
 const securityReview = readFileSync('guidelineDocs/AJINKYANS-PHASE-7-SECURITY-REVIEW.md', 'utf8')
@@ -17,6 +18,10 @@ describe('Phase 7 release controls', () => {
     expect(seedScript).toContain('const memberCount = 50')
     expect(seedScript).toContain('const listFixtureCount = 30')
     expect(seedScript).toContain('isDemo: true')
+    expect(seedScript).toContain('notifications/${notificationOwnerUid}')
+    expect(seedScript).toContain('submittedAt: createdAt')
+    expect(paginationVerifier).toContain("deploymentEnvironment !== 'staging'")
+    expect(paginationVerifier).toContain('startAfter')
   })
 
   test('requires App Check for production clients and records the private operational gates', () => {

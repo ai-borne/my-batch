@@ -22,7 +22,8 @@
     "test:functions": "npm --prefix functions run build && FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:39099 FIRESTORE_EMULATOR_HOST=127.0.0.1:38080 AJINKYANS_FUNCTIONS_EMULATOR_PORT=35001 firebase emulators:exec --config firebase.functions.json --only auth,firestore,functions \"vitest run --config vitest.functions.config.ts\"",
     "test:e2e": "AJINKYANS_E2E_AUTH_PORT=49099 AJINKYANS_E2E_FIRESTORE_PORT=48080 AJINKYANS_E2E_STORAGE_PORT=49199 AJINKYANS_E2E_FUNCTIONS_PORT=45001 AJINKYANS_E2E_EMULATOR_CONFIG=firebase.e2e.json playwright test",
     "emulators": "firebase emulators:start",
-    "seed:staging": "node scripts/seed-staging.mjs"
+    "seed:staging": "node scripts/seed-staging.mjs",
+    "verify:staging-pagination": "node scripts/verify-staging-pagination.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^6.0.5",

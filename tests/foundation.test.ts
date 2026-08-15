@@ -7,7 +7,7 @@ import { isHouseId, isNonEmptyText, isPositivePaise } from '../src/lib/validator
 describe('Phase 0 shared foundation', () => {
   it('exposes application copy and locked business defaults from single sources', () => {
     expect(COPY.signIn).toBe('Continue with Google')
-    expect(PILOT_BATCH_ID).toBe('batch-2002-3711')
+    expect(PILOT_BATCH_ID).toBe('sssatara-2002')
     expect(PASSING_YEAR).toBe(2002)
     expect(HOUSES).toHaveLength(6)
   })
