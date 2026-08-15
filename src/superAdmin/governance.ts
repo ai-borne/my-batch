@@ -4,10 +4,12 @@ import { PILOT_BATCH_ID } from '../lib/membership'
 import { COPY } from '../lib/copy'
 
 export type GovernanceMember = { uid: string; role?: string; displayName?: string; email?: string; memberCode?: string }
+export type BootstrapCandidate = { requestId: string; displayName: string; rollNumber: string; houseId: string | null }
 type AuditTimestamp = { toMillis?: () => number; seconds?: number; nanoseconds?: number; _seconds?: number; _nanoseconds?: number }
 export type AuditEvent = { id: string; action: string; actorUid: string; targetUid: string; reason: string; outcome?: string; roleBefore?: string; roleAfter?: string; createdAt?: number | AuditTimestamp }
 export type MemberPage = { members: GovernanceMember[]; nextPageToken: string | null }
 export type AuditPage = { events: AuditEvent[]; nextPageToken: string | null }
+export type BootstrapCandidatePage = { candidates: BootstrapCandidate[]; nextPageToken: string | null }
 export type AuditFilters = { action: string; actorUid: string; targetUid: string; from: string; to: string }
 
 function call<T>(name: string, data: Record<string, unknown>) {
@@ -40,6 +42,16 @@ export async function listGovernanceAuditEvents(filters: AuditFilters, pageToken
 
 export async function assignCoordinator({ memberUid, action, reason }: { memberUid: string; action: 'assign' | 'revoke'; reason: string }) {
   const result = await call<{ updated: boolean }>('assignCoordinator', { memberUid, action, reason })
+  return result.data
+}
+
+export async function listBootstrapCandidates(pageToken?: string) {
+  const result = await call<BootstrapCandidatePage>('listBootstrapCandidates', { pageToken })
+  return result.data
+}
+
+export async function bootstrapCoordinator({ requestId, reason, operationId }: { requestId: string; reason: string; operationId: string }) {
+  const result = await call<{ approved: boolean; membershipUid: string }>('bootstrapCoordinator', { requestId, reason, operationId })
   return result.data
 }
 

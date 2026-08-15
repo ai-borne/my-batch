@@ -4,9 +4,9 @@ import { COPY } from '../lib/copy'
 import { GovernanceMember, MemberPage } from './governance'
 
 type PendingChange = { member: GovernanceMember; action: 'assign' | 'revoke'; trigger: HTMLElement }
-type Props = { load: (search: string, pageToken?: string) => Promise<MemberPage>; onChange: (memberUid: string, action: 'assign' | 'revoke', reason: string) => Promise<void> }
+type Props = { load: (search: string, pageToken?: string) => Promise<MemberPage>; onChange: (memberUid: string, action: 'assign' | 'revoke', reason: string) => Promise<void>; refreshKey?: number }
 
-export function CoordinatorDirectory({ load, onChange }: Props) {
+export function CoordinatorDirectory({ load, onChange, refreshKey = 0 }: Props) {
   const [search, setSearch] = useState('')
   const [members, setMembers] = useState<GovernanceMember[]>([])
   const [pageToken, setPageToken] = useState<string | null>(null)
@@ -22,7 +22,7 @@ export function CoordinatorDirectory({ load, onChange }: Props) {
       setPageToken(page.nextPageToken); setState('ready')
     } catch (error) { setState('error'); setNotice(error instanceof Error && error.message.includes('permission-denied') ? COPY.superAdmin.accessDenied : COPY.superAdmin.membersFailed) }
   }
-  useEffect(() => { void fetchMembers('') }, [])
+  useEffect(() => { void fetchMembers('') }, [refreshKey])
   function submitSearch(event: FormEvent<HTMLFormElement>) { event.preventDefault(); void fetchMembers(search) }
   async function submitChange(values: FormData) {
     if (!dialog) return

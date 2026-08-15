@@ -3,9 +3,9 @@ import { COPY } from '../lib/copy'
 import { AuditEvent, AuditFilters, AuditPage, auditTime } from './governance'
 
 const initialFilters: AuditFilters = { action: '', actorUid: '', targetUid: '', from: '', to: '' }
-type Props = { load: (filters: AuditFilters, pageToken?: string) => Promise<AuditPage> }
+type Props = { load: (filters: AuditFilters, pageToken?: string) => Promise<AuditPage>; refreshKey?: number }
 
-export function AuditLog({ load }: Props) {
+export function AuditLog({ load, refreshKey = 0 }: Props) {
   const [filters, setFilters] = useState(initialFilters)
   const [events, setEvents] = useState<AuditEvent[]>([])
   const [pageToken, setPageToken] = useState<string | null>(null)
@@ -14,7 +14,7 @@ export function AuditLog({ load }: Props) {
     setState('loading')
     try { const page = await load(nextFilters, token); setEvents((current) => append ? [...current, ...page.events] : page.events); setPageToken(page.nextPageToken); setState('ready') } catch { setState('error') }
   }
-  useEffect(() => { void fetchEvents(initialFilters) }, [])
+  useEffect(() => { void fetchEvents(initialFilters) }, [refreshKey])
   function filter(event: FormEvent<HTMLFormElement>) { event.preventDefault(); void fetchEvents(filters) }
   return <section className="panel super-admin-section" aria-labelledby="audit-log-title">
     <p className="eyebrow">{COPY.superAdmin.auditLabel}</p><h2 id="audit-log-title">{COPY.superAdmin.auditTitle}</h2>
