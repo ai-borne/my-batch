@@ -1,4 +1,4 @@
-const cacheName = 'ajinkyans-shell-v2'
+const cacheName = 'ajinkyans-shell-v3'
 const shell = ['/', '/index.html', '/offline.html', '/manifest.webmanifest']
 
 self.addEventListener('install', (event) => {
@@ -26,7 +26,7 @@ self.addEventListener('fetch', (event) => {
   const cacheableAsset = path.startsWith('/assets/') || path.startsWith('/icons/') || path === '/manifest.webmanifest'
   if (!cacheableAsset) return
   event.respondWith(caches.match(request).then((cached) => cached || fetch(request).then((response) => {
-    if (response.ok) void caches.open(cacheName).then((cache) => cache.put(request, response.clone()))
+    if (response.ok) void caches.open(cacheName).then((cache) => cache.put(request, response.clone())).catch(() => undefined)
     return response
   })))
 })
