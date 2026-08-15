@@ -67,6 +67,16 @@ describe('Coordinator bootstrap callables', () => {
     await expect(admin.call('bootstrapCoordinator', { batchId, requestId: candidate.auth.currentUser!.uid, reason: 'Recovery', operationId: 'after-existing' })).rejects.toMatchObject({ code: 'functions/failed-precondition' })
   })
 
+  it('never grants a Super Admin batch membership through bootstrap or Coordinator approval', async () => {
+    const admin = await signIn('admin-super-target'); const coordinator = await signIn('coordinator-super-target'); const superAdminTarget = await signIn('super-target')
+    await makeSuperAdmin(admin); await makeSuperAdmin(superAdminTarget)
+    await pending(superAdminTarget.auth.currentUser!.uid, { rollNumber: 'SUPER-100' })
+    await expect(admin.call('bootstrapCoordinator', { batchId, requestId: superAdminTarget.auth.currentUser!.uid, reason: 'Recovery', operationId: 'super-target-bootstrap' })).rejects.toMatchObject({ code: 'functions/failed-precondition' })
+    await adminDb.doc(`batches/${batchId}/memberships/${coordinator.auth.currentUser!.uid}`).set({ uid: coordinator.auth.currentUser!.uid, status: 'active', role: 'coordinator' })
+    await expect(coordinator.call('approveMembership', { batchId, requestId: superAdminTarget.auth.currentUser!.uid })).rejects.toMatchObject({ code: 'functions/failed-precondition' })
+    expect((await adminDb.doc(`batches/${batchId}/memberships/${superAdminTarget.auth.currentUser!.uid}`).get()).exists).toBe(false)
+  })
+
   it('is idempotent after a successful but unacknowledged result and allows existing active-member appointment during recovery', async () => {
     const admin = await signIn('admin-retry'); const candidate = await signIn('candidate-retry'); const active = await signIn('active-retry'); await makeSuperAdmin(admin)
     await pending(candidate.auth.currentUser!.uid, { rollNumber: 'RETRY-100' })
@@ -91,6 +101,7 @@ describe('Coordinator bootstrap callables', () => {
     })
     const pageTwo = await adminOne.call<{ candidates: Array<{ requestId: string }>; nextPageToken: string | null }>('listBootstrapCandidates', { batchId, pageSize: 1, pageToken: pageOne.data.nextPageToken })
     expect(pageTwo.data.candidates[0].requestId).not.toBe(pageOne.data.candidates[0].requestId)
+    expect(pageTwo.data.nextPageToken).toBeNull()
     await expect(adminOne.call('listBootstrapCandidates', { batchId, pageToken: 'not-a-token' })).rejects.toMatchObject({ code: 'functions/invalid-argument' })
     const attempts = await Promise.allSettled([
       adminOne.call('bootstrapCoordinator', { batchId, requestId: first.auth.currentUser!.uid, reason: 'Recovery', operationId: 'concurrent-one' }),

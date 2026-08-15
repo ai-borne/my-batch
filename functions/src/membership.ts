@@ -1,4 +1,5 @@
 import { FieldPath, FieldValue, Timestamp, Transaction } from "firebase-admin/firestore"
+import { getAuth } from 'firebase-admin/auth'
 import { HttpsError } from "firebase-functions/v2/https"
 import { db, houseIds, requireBatchId, requireCoordinator, requireDocumentId, requireIdempotencyKey, requireRecentAuthentication, requireText, requireUid } from "./shared.js"
 import { limitCallable, secureCall } from './security.js'
@@ -12,6 +13,10 @@ function memberCode(batchId: string, rollNumber: unknown) {
 }
 
 type ApprovalInput = { batchId: string; requestId: string; actorUid: string; role: 'batchmate' | 'coordinator'; auditAction: string; reason?: string; retentionUntil?: ReturnType<typeof retentionUntil> }
+
+async function requireNonSuperAdminTarget(uid: string) {
+  if ((await getAuth().getUser(uid)).customClaims?.superAdmin === true) throw new HttpsError('failed-precondition', 'A Super Admin cannot receive batch membership.')
+}
 
 export async function approvePendingMembership(transaction: Transaction, input: ApprovalInput) {
   const requestRef = db.doc(`batches/${input.batchId}/accessRequests/${input.requestId}`)
@@ -41,6 +46,8 @@ export const approveMembership = secureCall(async (request) => {
   const coordinatorUid = requireUid(request.auth)
   requireRecentAuthentication(request.auth)
   await requireCoordinator(batchId, request.auth)
+  const target = await db.doc(`batches/${batchId}/accessRequests/${requestId}`).get()
+  await requireNonSuperAdminTarget(String(target.data()?.uid ?? ''))
   await limitCallable(batchId, coordinatorUid, 'approveMembership')
   await db.runTransaction(async (transaction) => {
     const currentRequest = await transaction.get(db.doc(`batches/${batchId}/accessRequests/${requestId}`))
@@ -58,6 +65,7 @@ export const bootstrapCoordinator = secureCall(async (request) => {
   const requestRef = db.doc(`batches/${batchId}/accessRequests/${requestId}`)
   const target = await requestRef.get()
   if (target.data()?.uid === actorUid) throw new HttpsError('failed-precondition', 'A Super Admin cannot appoint themselves as Coordinator.')
+  await requireNonSuperAdminTarget(String(target.data()?.uid ?? ''))
   await limitCallable(batchId, actorUid, 'bootstrapCoordinator')
   return db.runTransaction(async (transaction) => {
     const operationRef = db.doc(`batches/${batchId}/bootstrapOperations/${actorUid}_${operationId}`)
@@ -89,11 +97,13 @@ export const listBootstrapCandidates = secureCall(async (request) => {
   if (!activeCoordinators.empty) throw new HttpsError('failed-precondition', 'Coordinator bootstrap is only available when no active Coordinator exists.')
   let candidates: FirebaseFirestore.Query = db.collection(`batches/${batchId}/accessRequests`).where('status', '==', 'pending').orderBy('createdAt').orderBy(FieldPath.documentId())
   if (cursor) candidates = candidates.startAfter(Timestamp.fromMillis(cursor.createdAt), cursor.requestId)
-  const page = await candidates.limit(pageSize === undefined ? 25 : Number(pageSize)).get()
-  const last = page.docs.at(-1); const createdAt = last?.data().createdAt
+  const limit = pageSize === undefined ? 25 : Number(pageSize)
+  const page = await candidates.limit(limit + 1).get()
+  const visibleCandidates = page.docs.slice(0, limit)
+  const last = visibleCandidates.at(-1); const createdAt = last?.data().createdAt
   return {
-    candidates: page.docs.map((candidate) => ({ requestId: candidate.id, displayName: candidate.data().displayName, rollNumber: candidate.data().rollNumber, houseId: typeof candidate.data().houseId === 'string' ? candidate.data().houseId : null })),
-    nextPageToken: last && createdAt instanceof Timestamp ? Buffer.from(JSON.stringify({ createdAt: createdAt.toMillis(), requestId: last.id })).toString('base64url') : null,
+    candidates: visibleCandidates.map((candidate) => ({ requestId: candidate.id, displayName: candidate.data().displayName, rollNumber: candidate.data().rollNumber, houseId: typeof candidate.data().houseId === 'string' ? candidate.data().houseId : null })),
+    nextPageToken: page.size > limit && last && createdAt instanceof Timestamp ? Buffer.from(JSON.stringify({ createdAt: createdAt.toMillis(), requestId: last.id })).toString('base64url') : null,
   }
 })
 

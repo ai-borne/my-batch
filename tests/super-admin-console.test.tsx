@@ -166,14 +166,14 @@ describe('SuperAdminConsole', () => {
     listAuditEvents.mockResolvedValue({ events: [], nextPageToken: null })
     listBootstrapCandidates
       .mockResolvedValueOnce({ candidates: [{ requestId: 'request-4', displayName: 'Dev Malik', rollNumber: 'R-004', houseId: null }], nextPageToken: null })
-      .mockRejectedValueOnce(Object.assign(new Error('Coordinator bootstrap is only available'), { code: 'failed-precondition' }))
-    bootstrapCoordinator.mockRejectedValueOnce(Object.assign(new Error('Coordinator bootstrap is only available'), { code: 'failed-precondition' }))
+      .mockRejectedValueOnce(Object.assign(new Error('Coordinator bootstrap is only available'), { code: 'functions/failed-precondition' }))
+    bootstrapCoordinator.mockRejectedValueOnce(Object.assign(new Error('Coordinator bootstrap is only available'), { code: 'functions/failed-precondition' }))
 
     render(<SuperAdminConsole />)
     await user.click(await screen.findByRole('button', { name: 'Approve and appoint Coordinator for Dev Malik' }))
     await user.type(screen.getByLabelText('Business reason'), 'Coverage')
     await user.click(screen.getByRole('button', { name: 'Approve and appoint Coordinator' }))
-    expect(await screen.findByText('Coordinator bootstrap is no longer available because another Coordinator was appointed.')).toBeInTheDocument()
+    expect(await screen.findByText('Coordinator bootstrap is no longer available because the selected applicant is no longer eligible.')).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Coordinator bootstrap' })).not.toBeInTheDocument()
   })
 })

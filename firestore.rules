@@ -5,7 +5,7 @@ service cloud.firestore {
     function membership(batchId) {
       return get(/databases/$(database)/documents/batches/$(batchId)/memberships/$(request.auth.uid));
     }
-    function active(batchId) { return signedIn() && membership(batchId).data.status == 'active'; }
+    function active(batchId) { return signedIn() && (!request.auth.token.keys().hasAny(['superAdmin']) || request.auth.token.superAdmin != true) && membership(batchId).data.status == 'active'; }
     function coordinator(batchId) { return active(batchId) && membership(batchId).data.role == 'coordinator'; }
     function self(uid) { return signedIn() && request.auth.uid == uid; }
     function userShape(uid) { return request.resource.data.uid == uid && request.resource.data.keys().hasOnly(['uid', 'displayName', 'email', 'photoURL', 'createdAt', 'updatedAt']) && request.resource.data.displayName is string && request.resource.data.displayName.size() <= 100 && request.resource.data.email is string && request.resource.data.email.size() <= 320; }

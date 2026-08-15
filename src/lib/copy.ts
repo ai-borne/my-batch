@@ -55,7 +55,7 @@ export const COPY = {
     appointBootstrapAria: (name: string) => `Approve and appoint Coordinator for ${name}`,
     appointBootstrapDescription: 'This approves the pending applicant and grants Coordinator authority immediately.',
     bootstrapSuccess: 'Coordinator appointed. The bootstrap panel is no longer available.',
-    bootstrapStale: 'Coordinator bootstrap is no longer available because another Coordinator was appointed.',
+    bootstrapStale: 'Coordinator bootstrap is no longer available because the selected applicant is no longer eligible.',
     bootstrapDuplicateRoll: 'That school roll number is already assigned to another active member. Choose another applicant or resolve the duplicate roll number.',
     bootstrapRetry: 'Could not appoint the Coordinator. Please try again.',
     auditLabel: 'Authoritative audit log',
