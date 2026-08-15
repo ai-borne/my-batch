@@ -133,6 +133,19 @@ h2 { font-size: 20px; letter-spacing: -.035em; margin-bottom: 6px; }
 .dialog-actions { display: flex; flex-wrap: wrap; justify-content: end; gap: 8px; }
 .secondary-button { background: transparent; border: 1px solid var(--color-border); color: inherit; }
 .dark .secondary-button { border-color: var(--color-border-dark); }
+.super-admin-console { width: min(100% - 32px, 980px); margin: 0 auto; padding: 48px 0; display: grid; gap: 20px; }
+.super-admin-header { display: flex; align-items: start; justify-content: space-between; gap: 20px; }
+.super-admin-header h1 { font-size: clamp(36px, 6vw, 56px); }
+.super-admin-header > div > p:last-child { max-width: 620px; color: var(--color-muted); }
+.super-admin-section { display: grid; gap: 16px; }
+.super-admin-search, .super-admin-filters { display: grid; gap: 12px; align-items: end; }
+.super-admin-search { grid-template-columns: minmax(0, 1fr) auto; }
+.super-admin-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.super-admin-filters button { grid-column: 1 / -1; width: fit-content; }
+.audit-event { padding: 14px 0; border-top: 1px solid var(--color-border); }
+.audit-event:first-of-type { border-top: 0; }
+.audit-event small, .audit-event p { color: var(--color-muted); }
+.audit-event p { margin: 5px 0 0; overflow-wrap: anywhere; }
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; } }
 
@@ -163,4 +176,9 @@ h2 { font-size: 20px; letter-spacing: -.035em; margin-bottom: 6px; }
   .member-actions { justify-content: start; }
   .dialog-actions { justify-content: stretch; }
   .dialog-actions button { flex: 1 1 160px; }
+  .super-admin-console { width: min(100% - 24px, 980px); padding: 24px 0; }
+  .super-admin-header { align-items: stretch; flex-direction: column; }
+  .super-admin-header .secondary-button { width: fit-content; }
+  .super-admin-search, .super-admin-filters { grid-template-columns: 1fr; }
+  .super-admin-filters button { grid-column: auto; }
 }

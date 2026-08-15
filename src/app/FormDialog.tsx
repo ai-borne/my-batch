@@ -8,10 +8,11 @@ type FormDialogProps = {
   returnFocus: HTMLElement | null
   onClose: () => void
   onSubmit: (values: FormData) => Promise<void>
+  submitDisabled?: boolean
   children?: ReactNode
 }
 
-export function FormDialog({ title, description, submitLabel, returnFocus, onClose, onSubmit, children }: FormDialogProps) {
+export function FormDialog({ title, description, submitLabel, returnFocus, onClose, onSubmit, submitDisabled = false, children }: FormDialogProps) {
   const container = useRef<HTMLDivElement>(null)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -25,5 +26,5 @@ export function FormDialog({ title, description, submitLabel, returnFocus, onClo
     setSubmitting(true); setError('')
     try { await onSubmit(new FormData(event.currentTarget)) } catch (cause) { setError(cause instanceof Error ? cause.message : COPY.dialogActionFailed) } finally { setSubmitting(false) }
   }
-  return <div className="dialog-backdrop"><div className="form-dialog" ref={container} role="alertdialog" aria-modal="true" aria-labelledby="dialog-title" aria-describedby="dialog-description" onKeyDown={(event) => { if (event.key === 'Escape' && !submitting) onClose() }}><form onSubmit={submit}><h2 id="dialog-title">{title}</h2><p id="dialog-description">{description}</p>{children}{error && <p role="alert">{error}</p>}<div className="dialog-actions"><button type="button" className="secondary-button" onClick={onClose} disabled={submitting}>{COPY.cancel}</button><button type="submit" disabled={submitting}>{submitting ? COPY.working : submitLabel}</button></div></form></div></div>
+  return <div className="dialog-backdrop"><div className="form-dialog" ref={container} role="alertdialog" aria-modal="true" aria-labelledby="dialog-title" aria-describedby="dialog-description" onKeyDown={(event) => { if (event.key === 'Escape' && !submitting) onClose() }}><form onSubmit={submit}><h2 id="dialog-title">{title}</h2><p id="dialog-description">{description}</p>{children}{error && <p role="alert">{error}</p>}<div className="dialog-actions"><button type="button" className="secondary-button" onClick={onClose} disabled={submitting}>{COPY.cancel}</button><button type="submit" disabled={submitting || submitDisabled}>{submitting ? COPY.working : submitLabel}</button></div></form></div></div>
 }
