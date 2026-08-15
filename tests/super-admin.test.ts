@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { canAccessMemberFlow, canAccessSuperAdminRoute, destinationForSession, hasSuperAdminClaim } from '../src/lib/authorization'
+import { canAccessMemberFlow, canAccessSuperAdminRoute, destinationForSession, hasSuperAdminClaim, shouldLoadMemberSession } from '../src/lib/authorization'
 
 describe('Super Admin authorization routing', () => {
   it('recognizes only a boolean Firebase ID-token Super Admin claim', () => {
@@ -15,6 +15,11 @@ describe('Super Admin authorization routing', () => {
   it('denies Super Admin access to member and request-access flows', () => {
     expect(canAccessMemberFlow(true)).toBe(false)
     expect(destinationForSession(true, { status: 'active', role: 'coordinator' })).toBe('/super-admin')
+  })
+
+  it('does not initialise member records for a Super Admin session', () => {
+    expect(shouldLoadMemberSession(true)).toBe(false)
+    expect(shouldLoadMemberSession(false)).toBe(true)
   })
 
   it('allows only a signed-in claimed Super Admin to access the console', () => {

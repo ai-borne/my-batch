@@ -17,6 +17,10 @@ export function canAccessMemberFlow(isSuperAdmin: boolean): boolean {
   return !isSuperAdmin
 }
 
+export function shouldLoadMemberSession(isSuperAdmin: boolean): boolean {
+  return !isSuperAdmin
+}
+
 export function isPermissionDenied(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'code' in error
     && ['permission-denied', 'functions/permission-denied'].includes(String((error as { code?: unknown }).code))

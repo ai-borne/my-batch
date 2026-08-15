@@ -4,7 +4,7 @@ import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore/lite'
 import { firebaseServices } from '../lib/firebase'
 import { Membership, PILOT_BATCH_ID } from '../lib/membership'
 import { clearPrivateAppCache } from '../lib/cachePrivacy'
-import { hasSuperAdminClaim } from '../lib/authorization'
+import { hasSuperAdminClaim, shouldLoadMemberSession } from '../lib/authorization'
 
 type AuthState = { user: User | null; membership: Membership | null; isSuperAdmin: boolean; loading: boolean; signIn: () => Promise<void>; signInForE2E: (email: string, password: string) => Promise<void>; signOut: () => Promise<void>; reauthenticate: () => Promise<void>; refreshMembership: () => Promise<void> }
 const AuthContext = createContext<AuthState | null>(null)
@@ -21,7 +21,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(nextUser)
       if (nextUser) {
         const token = await nextUser.getIdTokenResult()
-        setIsSuperAdmin(hasSuperAdminClaim(token.claims))
+        const nextIsSuperAdmin = hasSuperAdminClaim(token.claims)
+        setIsSuperAdmin(nextIsSuperAdmin)
+        if (!shouldLoadMemberSession(nextIsSuperAdmin)) {
+          setMembership({ status: 'none' })
+          setLoading(false)
+          return
+        }
         const userRef = doc(db, 'users', nextUser.uid)
         const existingUser = await getDoc(userRef)
         await setDoc(userRef, { uid: nextUser.uid, displayName: nextUser.displayName ?? '', email: nextUser.email ?? '', photoURL: nextUser.photoURL ?? null, updatedAt: serverTimestamp(), ...(!existingUser.exists() ? { createdAt: serverTimestamp() } : {}) }, { merge: true })
