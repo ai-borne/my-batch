@@ -7,7 +7,10 @@
     { "collectionGroup": "accessRequests", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "status", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" }] },
     { "collectionGroup": "accessRequests", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "status", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "ASCENDING" }] },
     { "collectionGroup": "memberships", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "status", "order": "ASCENDING" }, { "fieldPath": "role", "order": "ASCENDING" }] },
-    { "collectionGroup": "reports", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "status", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" }] }
+    { "collectionGroup": "reports", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "status", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" }] },
+    { "collectionGroup": "directoryMembers", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "directoryHouseId", "order": "ASCENDING" }, { "fieldPath": "directoryDisplayName", "order": "ASCENDING" }] },
+    { "collectionGroup": "directoryMembers", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "directoryCity", "order": "ASCENDING" }, { "fieldPath": "directoryDisplayName", "order": "ASCENDING" }] },
+    { "collectionGroup": "directoryMembers", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "directoryProfession", "order": "ASCENDING" }, { "fieldPath": "directoryDisplayName", "order": "ASCENDING" }] }
   ],
   "fieldOverrides": []
 }

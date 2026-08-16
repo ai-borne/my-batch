@@ -11,7 +11,6 @@ function memberCode(batchId: string, rollNumber: unknown) {
   }
   return `${batchId}-${rollNumber.toLowerCase()}`
 }
-
 type ApprovalInput = { batchId: string; requestId: string; actorUid: string; role: 'batchmate' | 'coordinator'; auditAction: string; reason?: string; retentionUntil?: ReturnType<typeof retentionUntil> }
 
 async function requireNonSuperAdminTarget(uid: string) {

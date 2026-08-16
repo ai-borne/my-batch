@@ -10,6 +10,8 @@ export const callablePolicies = {
   assignCoordinator: { limit: 3, windowSeconds: 3600, rationale: 'role grants are high impact' },
   listGovernanceAuditEvents: { limit: 30, windowSeconds: 600, rationale: 'audit browsing is sensitive' },
   listGovernanceMembers: { limit: 30, windowSeconds: 600, rationale: 'directory browsing is sensitive' },
+  listDirectoryHouses: { limit: 30, windowSeconds: 600, rationale: 'private house presentation is member-scoped' },
+  listDirectoryMembers: { limit: 30, windowSeconds: 600, rationale: 'private directory browsing is member-scoped' },
   attachExpenseReceipt: { limit: 10, windowSeconds: 600, rationale: 'receipt attachment is sensitive' },
   attachPaymentEvidence: { limit: 6, windowSeconds: 600, rationale: 'payment evidence is sensitive' },
   cleanupArchiveOrphans: { limit: 2, windowSeconds: 3600, rationale: 'cleanup scans batch storage' },

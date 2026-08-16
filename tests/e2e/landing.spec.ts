@@ -46,6 +46,21 @@ test('desktop keeps matching top navigation without the mobile bar', async ({ pa
   await expect(navigation.getByRole('link')).toHaveCount(5)
 })
 
+test('the directory searches the server projection, clears filters, and pages beyond the first result set', async ({ page }) => {
+  await page.setViewportSize({ width: 768, height: 1024 }); await signIn(page, 'member@example.test'); await page.goto('/houses')
+  await expect(page.getByText('Directory Member 01')).toBeVisible(); await page.getByRole('button', { name: 'Show more members' }).click(); await expect(page.getByText('Directory Member 26')).toBeVisible()
+  await page.getByLabel('Search members by name').fill('Directory Member 03'); await expect(page.getByText('Directory Member 03')).toBeVisible(); await expect(page.getByText('Directory Member 04')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Clear filters' }).click(); await expect(page.getByText('Directory Member 01')).toBeVisible()
+})
+
+test('directory profile navigation remains usable at mobile, tablet, and desktop widths', async ({ page }) => {
+  await signIn(page, 'member@example.test')
+  for (const viewport of [{ width: 375, height: 812 }, { width: 768, height: 1024 }, { width: 1280, height: 800 }]) {
+    await page.setViewportSize(viewport); await page.goto('/houses'); await page.getByRole('link', { name: "View Directory Member 01's profile" }).click()
+    await expect(page.getByRole('heading', { name: 'Directory Member 01' })).toBeVisible(); expect(await page.locator('body').evaluate((body) => body.scrollWidth <= body.clientWidth)).toBe(true)
+  }
+})
+
 test('shell reflows without horizontal overflow at every P0 viewport', async ({ page }) => {
   await signIn(page, 'coordinator@example.test')
   for (const viewport of [{ width: 375, height: 812 }, { width: 768, height: 1024 }, { width: 1024, height: 768 }, { width: 1280, height: 800 }]) {

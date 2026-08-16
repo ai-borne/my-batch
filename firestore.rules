@@ -36,6 +36,7 @@ service cloud.firestore {
         allow update: if active(batchId) && self(uid) && profileShape(uid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'avatarPath', 'city', 'profession', 'about', 'favouriteSchoolMemory', 'teacherOrActivity', 'socialLinks', 'updatedAt']);
         allow delete: if false;
       }
+      match /directoryMembers/{uid} { allow read, write: if false; }
       match /reunion/config { allow read: if active(batchId); allow write: if coordinator(batchId); }
       match /reunionSchedule/{eventId} { allow read: if active(batchId); allow write: if coordinator(batchId); }
       match /reunionContacts/{contactId} { allow read: if active(batchId); allow write: if coordinator(batchId); }

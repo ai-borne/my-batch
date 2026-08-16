@@ -9,6 +9,10 @@ export const COPY = {
   shell: {
     signOut: 'Sign out',
   },
+  directory: {
+    eyebrow: 'Our houses', title: 'Find your batchmates.', intro: 'Search the private member directory.', searchLabel: 'Search members by name', searchPlaceholder: 'Start typing a name', houseLabel: 'House', cityLabel: 'City', professionLabel: 'Profession', allHouses: 'All houses', allCities: 'All cities', allProfessions: 'All professions', sortLabel: 'Sort by', sortName: 'Name', sortHouse: 'House', clearFilters: 'Clear filters', loadMore: 'Show more members', loading: 'Searching the private directory…', emptyTitle: 'No batchmates found', emptyBody: 'Try a different name or clear your filters.', offlineTitle: 'Directory unavailable offline', offlineBody: 'Reconnect to search the private directory.', deniedTitle: 'Directory unavailable', deniedBody: 'Your membership no longer permits directory access. Contact a Coordinator if this is unexpected.', failedTitle: 'Directory unavailable', failedBody: 'Please try again. We do not reveal whether a private profile exists.', retry: 'Try again', memberCount: (count: number) => `${count} member${count === 1 ? '' : 's'} shown`, houseCount: (count: number) => `${count} member${count === 1 ? '' : 's'}`,
+    profileVisibility: 'Visible only to approved batch members.', profileUnavailable: 'This profile is unavailable.', profileBack: 'Back to directory', reportProfile: 'Report profile', reportSent: 'Profile report sent to Coordinators.', reportFailed: 'Unable to send the report. Please try again.',
+  },
   resilience: {
     offline: 'You’re offline. Previously opened app screens remain available; private data will refresh when you reconnect.',
     errorTitle: 'Something went wrong',

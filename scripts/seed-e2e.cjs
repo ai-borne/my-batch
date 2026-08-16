@@ -30,6 +30,12 @@ async function seedE2E() {
   await db.doc(`batches/${batchId}/paymentConfig/current`).set({ currency: 'INR', upiId: 'collection@upi', accountLabel: 'Reunion collection', defaultFamilyAmountPaise: 3000000, targetPaise: 5000000, contributionHeads: ['Reunion contribution'], qrStoragePath: `batches/${batchId}/reunion/qr/placeholder.png`, updatedBy: 'coordinator', updatedAt: new Date() })
   await db.doc(`batches/${batchId}/posts/archive-post`).set({ authorUid: 'member', caption: 'Archive test memory', media: [], status: 'visible', createdAt: new Date(), updatedAt: new Date() })
   await db.doc(`batches/${batchId}/notifications/member/items/welcome`).set({ kind: 'announcement', title: 'Welcome back', body: 'Reunion updates appear here.', createdAt: new Date() })
+  for (let index = 0; index < 26; index += 1) {
+    const displayName = `Directory Member ${String(index + 1).padStart(2, '0')}`
+    await db.doc(`batches/${batchId}/directoryMembers/directory-${index}`).set({ uid: `directory-${index}`, displayName, houseId: index % 2 ? 'tilak' : 'nehru', city: 'Pune', profession: 'Engineer', avatarPath: null, directoryDisplayName: displayName.toLowerCase(), directoryHouseId: index % 2 ? 'tilak' : 'nehru', directoryCity: 'pune', directoryProfession: 'engineer' })
+  }
+  await db.doc(`batches/${batchId}/memberships/directory-0`).set({ uid: 'directory-0', status: 'active', role: 'batchmate', houseId: 'nehru' })
+  await db.doc(`batches/${batchId}/profiles/directory-0`).set({ uid: 'directory-0', displayName: 'Directory Member 01', houseId: 'nehru', city: 'Pune', profession: 'Engineer', about: 'Private directory profile.' })
 }
 
 module.exports = { seedE2E }

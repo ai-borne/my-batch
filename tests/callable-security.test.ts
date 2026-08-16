@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { describe, expect, it } from 'vitest'
 
 const callableExports = [
-  'addArchiveMedia', 'approveMembership', 'assignCoordinator', 'attachExpenseReceipt', 'attachPaymentEvidence', 'bootstrapCoordinator', 'listBootstrapCandidates', 'listGovernanceAuditEvents', 'listGovernanceMembers',
+  'addArchiveMedia', 'approveMembership', 'assignCoordinator', 'attachExpenseReceipt', 'attachPaymentEvidence', 'bootstrapCoordinator', 'listBootstrapCandidates', 'listDirectoryHouses', 'listDirectoryMembers', 'listGovernanceAuditEvents', 'listGovernanceMembers',
   'cleanupArchiveOrphans', 'createAlbum', 'createPost', 'deleteOwnComment', 'deleteOwnPost', 'manageAlbum',
   'manageMembership', 'markNotificationsRead', 'moderateArchiveContent', 'publishAnnouncement', 'rebuildFundSummary',
   'rejectMembership', 'reopenRsvp', 'reportArchiveContent', 'requestProfileDataChange', 'reviewExpense',

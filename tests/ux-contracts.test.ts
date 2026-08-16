@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { normalizeDirectoryQuery } from '../src/lib/directory'
+import { directorySearchFields, normalizeDirectoryQuery } from '../src/lib/directory'
 import { canTransitionPaymentClaim, paymentClaimPresentation, PAYMENT_CLAIM_STATES } from '../src/lib/paymentClaim'
 import { REUNION_PRESENTATION, REUNION_STATUSES, reunionPresentation } from '../src/lib/reunionState'
 import { reunionStatus, validatedMapUrl } from '../src/lib/reunion'
@@ -35,5 +35,7 @@ describe('UX-0 state contracts', () => {
 
   it('normalizes only permitted directory filters before a server query is made', () => {
     expect(normalizeDirectoryQuery({ search: '  Ajin KyaNs ', filters: { house: ' Tilak ', city: ' Pune ', profession: '  ', unknown: 'ignore' } as never, sort: 'invalid' as never, limit: 20 })).toEqual({ search: 'ajin kyans', filters: { house: 'tilak', city: 'pune' }, sort: 'displayName', limit: 20 })
+    expect(normalizeDirectoryQuery({ limit: 99 })).toMatchObject({ limit: 50, sort: 'displayName' })
+    expect(directorySearchFields({ displayName: ' Ajinkya Rao ', city: ' Pune ', profession: ' Engineer ', houseId: 'tilak' })).toEqual({ directoryDisplayName: 'ajinkya rao', directoryCity: 'pune', directoryProfession: 'engineer', directoryHouseId: 'tilak' })
   })
 })
