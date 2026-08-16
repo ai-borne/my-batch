@@ -9,7 +9,7 @@ const pageSize = 25
 if (deploymentEnvironment !== 'staging' || !projectId || !batchId) throw new Error('Set AJINKYANS_DEPLOYMENT_ENV=staging, AJINKYANS_STAGING_PROJECT_ID, and AJINKYANS_STAGING_BATCH_ID.')
 if (!/staging/i.test(projectId)) throw new Error('Refusing to verify: AJINKYANS_STAGING_PROJECT_ID must identify the staging project.')
 
-initializeApp({ credential: applicationDefault(), projectId })
+const app = initializeApp({ credential: applicationDefault(), projectId })
 const db = getFirestore()
 const collection = (name) => db.collection(`batches/${batchId}/${name}`)
 const queries = [
@@ -31,3 +31,6 @@ for (const [label, createQuery] of queries) {
   if (!next.size) throw new Error(`${label}: expected a non-empty continuation page.`)
   console.log(`${label}: firstPage=${first.size} continuationPage=${next.size}`)
 }
+await db.terminate()
+await app.delete()
+process.exit(0)

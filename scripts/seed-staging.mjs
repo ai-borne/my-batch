@@ -14,7 +14,7 @@ if (!confirmation || deploymentEnvironment !== 'staging' || !projectId || !batch
 }
 if (!/staging/i.test(projectId)) throw new Error('Refusing to seed: AJINKYANS_STAGING_PROJECT_ID must identify the staging project.')
 
-initializeApp({ credential: applicationDefault(), projectId })
+const app = initializeApp({ credential: applicationDefault(), projectId })
 const db = getFirestore()
 const houses = ['shivaji', 'nehru', 'karve', 'rana-pratap', 'shastri', 'tilak']
 const batch = db.batch()
@@ -42,3 +42,6 @@ Array.from({ length: listFixtureCount }, (_, index) => index).forEach((index) =>
 })
 await batch.commit()
 console.log(`Seeded synthetic staging fixtures: ${memberCount} members and ${listFixtureCount} records for each paginated list.`)
+await db.terminate()
+await app.delete()
+process.exit(0)
