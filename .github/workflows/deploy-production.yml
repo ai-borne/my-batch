@@ -1,7 +1,6 @@
 name: deploy-production
-# Runs only on main. Production deploys go through the shared pipeline and are
-# scoped to the 'production' GitHub Environment so you can attach protection
-# rules (required reviewers, branch checks) in Settings -> Environments.
+# Runs only on main. Scoped to the 'production' GitHub Environment so deploys
+# wait for the required-reviewer approval configured there.
 
 on:
   push:
@@ -19,15 +18,38 @@ jobs:
   production:
     name: Deploy production (my-batch-0001)
     environment: production
-    uses: ./.github/workflows/deploy-website.yml
-    with:
-      app_env: production
-      project_id: my-batch-0001
-    secrets:
-      service_account: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PRODUCTION }}
-      firebase_api_key: ${{ secrets.FIREBASE_PRODUCTION_API_KEY }}
-      firebase_auth_domain: ${{ secrets.FIREBASE_PRODUCTION_AUTH_DOMAIN }}
-      firebase_storage_bucket: ${{ secrets.FIREBASE_PRODUCTION_STORAGE_BUCKET }}
-      firebase_messaging_sender_id: ${{ secrets.FIREBASE_PRODUCTION_MESSAGING_SENDER_ID }}
-      firebase_app_id: ${{ secrets.FIREBASE_PRODUCTION_APP_ID }}
-      recaptcha_site_key: ${{ secrets.FIREBASE_PRODUCTION_RECAPTCHA_SITE_KEY }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install frontend deps
+        run: npm ci
+      - name: Install functions deps
+        run: npm ci --prefix functions
+      - name: Build functions
+        run: npm --prefix functions run build
+      - name: Build frontend
+        run: npm run build
+        env:
+          VITE_APP_ENV: production
+          VITE_FIREBASE_API_KEY: ${{ secrets.FIREBASE_PRODUCTION_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.FIREBASE_PRODUCTION_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: my-batch-0001
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.FIREBASE_PRODUCTION_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.FIREBASE_PRODUCTION_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.FIREBASE_PRODUCTION_APP_ID }}
+          VITE_RECAPTCHA_ENTERPRISE_SITE_KEY: ${{ secrets.FIREBASE_PRODUCTION_RECAPTCHA_SITE_KEY }}
+      - name: Deploy to Firebase
+        uses: w9jds/firebase-action@v15.27.0
+        with:
+          args: deploy --only hosting,functions,firestore:rules,firestore:indexes --project my-batch-0001 --force
+        env:
+          GCP_SA_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PRODUCTION }}
