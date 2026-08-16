@@ -16,6 +16,21 @@ The pilot is ready for wider release only when all of the following are evidence
 
 ## Staging seed and pilot
 
+## UX-0 launch-content checklist
+
+The Coordinator product owner is the Coordinator recorded in the private operator release record. Their identity is intentionally not committed here, because this repository must not contain member or operator PII. This is the source-of-truth conflict with the redesign plan's request to name the owner in-repository; the private release record takes precedence.
+
+Before a pilot invite, that owner must confirm all of the following are present in staging:
+
+- Six complete house records, each with its presentation data.
+- Display names and approved avatars where available.
+- 10–20 vetted synthetic archive memories across at least one collection.
+- Current reunion status, schedule, venue, and approved contact content.
+- Current payment instructions, including a safe UPI action and QR reference.
+- No real member data, payment identifiers, private media, or credentials in seed data or evidence.
+
+Record completion, date, tested commit, and owner identity only in the private release record.
+
 Authenticate with a staging-only operator account, then seed only synthetic data:
 
 ```sh

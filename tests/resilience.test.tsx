@@ -1,6 +1,8 @@
+import { Component } from 'react'
 import { render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, test } from 'vitest'
-import { OfflineNotice } from '../src/app/Resilience'
+import { AppErrorBoundary, OfflineNotice } from '../src/app/Resilience'
+import { COPY } from '../src/lib/copy'
 import { unreadCount } from '../src/lib/notifications'
 
 const onlineDescriptor = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(navigator), 'onLine')
@@ -18,6 +20,14 @@ describe('offline resilience', () => {
   test('explains that offline mode does not expose new private data', () => {
     Object.defineProperty(navigator, 'onLine', { configurable: true, value: false })
     render(<OfflineNotice />)
-    expect(screen.getByRole('status')).toHaveTextContent('private data will refresh when you reconnect')
+    expect(screen.getByRole('status')).toHaveTextContent(COPY.resilience.offline)
+    expect(screen.getByRole('status')).toHaveClass('surface-warning')
+  })
+
+  test('uses shared error copy and semantic elevated surface for a recovered rendering failure', () => {
+    class Broken extends Component { render() { throw new Error('synthetic failure') } }
+    render(<AppErrorBoundary><Broken /></AppErrorBoundary>)
+    expect(screen.getByRole('alert')).toHaveTextContent(COPY.resilience.errorTitle)
+    expect(screen.getByRole('alert')).toHaveClass('surface-raised')
   })
 })

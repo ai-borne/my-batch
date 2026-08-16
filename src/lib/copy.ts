@@ -3,10 +3,23 @@ export const COPY = {
   batchName: 'Sainik School Satara · 2002 Batch',
   signIn: 'Continue with Google',
   privateAccess: 'Our memories, preserved—privately for approved members.',
-  offlinePrivateData: 'private data will refresh when you reconnect',
   cancel: 'Cancel',
   working: 'Working…',
   dialogActionFailed: 'Could not complete that action. Please try again.',
+  resilience: {
+    offline: 'You’re offline. Previously opened app screens remain available; private data will refresh when you reconnect.',
+    errorTitle: 'Something went wrong',
+    errorBody: 'Please refresh the app. If this continues, contact a Coordinator.',
+  },
+  reunion: {
+    announced: 'Reunion details will be shared here.',
+    rsvpClosed: 'RSVP is closed. View the confirmed reunion details.',
+    completed: 'The reunion has concluded. Relive the memories.',
+    archived: 'This reunion is now part of the archive.',
+  },
+  paymentClaim: {
+    draft: 'Your payment claim is ready to submit.', submitted: 'Your claim has been submitted.', underReview: 'A Coordinator is reviewing your claim.', clarificationRequired: 'Please correct the requested payment details.', verified: 'Your payment has been verified.', rejected: 'Your claim could not be verified. Please correct and resubmit it.', resubmitted: 'Your corrected claim has been resubmitted.',
+  },
   coordinator: {
     checkingAccess: 'Checking Coordinator access…',
     accessChanged: 'Your Coordinator access is no longer available. Batch member access remains unchanged.',
