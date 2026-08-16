@@ -40,7 +40,7 @@ jobs:
           VITE_RECAPTCHA_ENTERPRISE_SITE_KEY: ${{ secrets.FIREBASE_STAGING_RECAPTCHA_SITE_KEY }}
       - uses: w9jds/firebase-action@v15.27.0
         with:
-          args: deploy --only hosting,functions,firestore:rules,firestore:indexes --project my-batch-staging
+          args: deploy --only hosting,functions,firestore:rules,firestore:indexes --project my-batch-staging --force
         env:
           GCP_SA_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_STAGING }}
 
@@ -74,6 +74,6 @@ jobs:
           VITE_RECAPTCHA_ENTERPRISE_SITE_KEY: ${{ secrets.FIREBASE_PRODUCTION_RECAPTCHA_SITE_KEY }}
       - uses: w9jds/firebase-action@v15.27.0
         with:
-          args: deploy --only hosting,functions,firestore:rules,firestore:indexes --project my-batch-0001
+          args: deploy --only hosting,functions,firestore:rules,firestore:indexes --project my-batch-0001 --force
         env:
           GCP_SA_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PRODUCTION }}
