@@ -19,6 +19,8 @@ async function seedE2E() {
     try { await auth.getUser(uid) } catch { await auth.createUser({ uid, email, password: 'password-123' }) }
   }
   await db.doc(`batches/${batchId}`).set({ name: 'Ajinkyans 2002' })
+  await db.doc(`batches/${batchId}/reunion/config`).set({ status: 'rsvp_open', title: 'Silver Jubilee Reunion', venue: 'Sainik School Satara', reunionStartDate: new Date('2027-01-10T00:00:00.000Z'), rsvpCutoffAt: new Date('2027-01-05T00:00:00.000Z') })
+  await db.doc(`batches/${batchId}/reunion/attendance`).set({ yes: 2, maybe: 1 })
   await db.doc(`batches/${batchId}/memberships/coordinator`).set({ uid: 'coordinator', status: 'active', role: 'coordinator' })
   await db.doc(`batches/${batchId}/memberships/member`).set({ uid: 'member', status: 'active', role: 'batchmate' })
   await db.doc(`batches/${batchId}/memberships/pending`).set({ uid: 'pending', status: 'pending', role: 'batchmate' })

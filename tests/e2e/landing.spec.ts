@@ -34,7 +34,7 @@ test('an active member gets the accessible five-item mobile navigation and Home 
   await expect(navigation).toContainText('Home')
   await expect(navigation).toContainText('Account')
   await expect(navigation).not.toContainText('Fund')
-  await page.getByRole('link', { name: 'View reunion' }).click()
+  await page.getByRole('link', { name: 'RSVP now' }).click()
   await expect(page).toHaveURL(/\/reunion$/)
 })
 
@@ -74,7 +74,7 @@ test('critical member controls retain accessible landmarks, keyboard operation, 
   await signIn(page, 'coordinator@example.test'); await page.goto('/home')
   await expect(page.getByRole('main')).toBeVisible()
   await expect(page.getByRole('navigation', { name: 'Batch navigation' })).toBeVisible()
-  const reunion = page.getByRole('link', { name: 'View reunion' })
+  const reunion = page.getByRole('link', { name: 'RSVP now' })
   await reunion.focus(); await expect(reunion).toBeFocused(); await page.keyboard.press('Enter')
   await expect(page).toHaveURL(/\/reunion$/)
   expect(await page.locator('body').evaluate((body) => body.scrollWidth <= body.clientWidth)).toBe(true)

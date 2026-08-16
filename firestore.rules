@@ -39,7 +39,8 @@ service cloud.firestore {
       match /reunion/config { allow read: if active(batchId); allow write: if coordinator(batchId); }
       match /reunionSchedule/{eventId} { allow read: if active(batchId); allow write: if coordinator(batchId); }
       match /reunionContacts/{contactId} { allow read: if active(batchId); allow write: if coordinator(batchId); }
-      match /rsvps/{uid} { allow read: if active(batchId); allow write: if false; }
+      match /rsvps/{uid} { allow read: if active(batchId) && self(uid); allow write: if false; }
+      match /reunion/attendance { allow read: if active(batchId); allow write: if false; }
       match /paymentConfig/current {
         allow read: if active(batchId);
         allow create, update: if coordinator(batchId) && request.resource.data.keys().hasOnly(['defaultFamilyAmountPaise', 'targetPaise', 'currency', 'upiId', 'qrStoragePath', 'accountLabel', 'contributionHeads', 'updatedBy', 'updatedAt']) && request.resource.data.currency == 'INR' && request.resource.data.upiId is string && request.resource.data.upiId.size() <= 120 && request.resource.data.defaultFamilyAmountPaise is int && request.resource.data.defaultFamilyAmountPaise >= 0 && request.resource.data.targetPaise is int && request.resource.data.targetPaise >= 0 && request.resource.data.qrStoragePath is string && request.resource.data.qrStoragePath.matches('batches/' + batchId + '/reunion/qr/.*') && request.resource.data.contributionHeads is list && request.resource.data.contributionHeads.size() > 0 && request.resource.data.contributionHeads.size() <= 12 && request.resource.data.updatedBy == request.auth.uid;

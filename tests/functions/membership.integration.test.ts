@@ -256,6 +256,7 @@ describe('GS-1 callable integrity and abuse controls', () => {
     await expect(pending.call('submitRsvp', rsvp)).rejects.toMatchObject({ code: 'functions/permission-denied' })
     await expect(suspended.call('submitRsvp', rsvp)).rejects.toMatchObject({ code: 'functions/permission-denied' })
     for (let attempt = 0; attempt < 10; attempt += 1) await active.call('submitRsvp', rsvp)
+    expect((await adminDb.doc(`batches/${batchId}/reunion/attendance`).get()).data()).toMatchObject({ yes: 1, maybe: 0 })
     await expect(active.call('submitRsvp', rsvp)).rejects.toMatchObject({ code: 'functions/resource-exhausted' })
   })
 

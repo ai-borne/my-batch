@@ -80,7 +80,14 @@ describe('private batch boundaries', () => {
   it('keeps RSVP attendance summaries batch-private', async () => {
     await environment.withSecurityRulesDisabled(async (context) => context.firestore().doc('batches/batch-a/rsvps/member').set({ uid: 'member', attendance: 'yes' }))
     await assertSucceeds(db('member').doc('batches/batch-a/rsvps/member').get())
+    await assertFails(db('coordinator').doc('batches/batch-a/rsvps/member').get())
     await assertFails(db('pending').doc('batches/batch-a/rsvps/member').get())
+  })
+  it('exposes only aggregate attendance social proof to approved members', async () => {
+    await environment.withSecurityRulesDisabled(async (context) => context.firestore().doc('batches/batch-a/reunion/attendance').set({ yes: 4, maybe: 2 }))
+    await assertSucceeds(db('member').doc('batches/batch-a/reunion/attendance').get())
+    await assertFails(db('pending').doc('batches/batch-a/reunion/attendance').get())
+    await assertFails(db('other-batch').doc('batches/batch-a/reunion/attendance').get())
   })
   it('limits reunion configuration to Coordinators and RSVP writes to trusted functions', async () => {
     await assertFails(db('member').doc('batches/batch-a/reunion/config').update({ title: 'Changed' }))

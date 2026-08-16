@@ -18,12 +18,18 @@ export const submitRsvp = secureCall(async (request) => {
   await limitCallable(batchId, uid, 'submitRsvp')
   const configRef = db.doc(`batches/${batchId}/reunion/config`)
   const rsvpRef = db.doc(`batches/${batchId}/rsvps/${uid}`)
+  const attendanceRef = db.doc(`batches/${batchId}/reunion/attendance`)
   await db.runTransaction(async (transaction) => {
-    const [config, existing] = await Promise.all([transaction.get(configRef), transaction.get(rsvpRef)])
+    const [config, existing, attendanceSummary] = await Promise.all([transaction.get(configRef), transaction.get(rsvpRef), transaction.get(attendanceRef)])
     const cutoff = config.data()?.rsvpCutoffAt?.toDate?.() as Date | undefined
     const reopened = existing.data()?.reopenedAt
     if (cutoff && cutoff <= new Date() && !reopened) throw new HttpsError('failed-precondition', 'The RSVP editing period has closed.')
+    const previousAttendance = existing.data()?.attendance
+    const summary = attendanceSummary.data() ?? {}
+    const yes = Math.max(0, Number(summary.yes ?? 0) - (previousAttendance === 'yes' ? 1 : 0) + (attendance === 'yes' ? 1 : 0))
+    const maybe = Math.max(0, Number(summary.maybe ?? 0) - (previousAttendance === 'maybe' ? 1 : 0) + (attendance === 'maybe' ? 1 : 0))
     transaction.set(rsvpRef, { uid, batchId, attendance, accompanyingAdults: adultCount, accompanyingChildren: childCount, foodPreference, hotelRequired, ...(miscellaneousDetails ? { miscellaneousDetails } : {}), reopenedAt: FieldValue.delete(), reopenedBy: FieldValue.delete(), submittedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(), updatedBy: uid }, { merge: true })
+    transaction.set(attendanceRef, { yes, maybe, updatedAt: FieldValue.serverTimestamp() }, { merge: true })
   })
   return { saved: true }
 })
