@@ -24,7 +24,7 @@ export function Pending() {
     return () => window.clearInterval(interval)
   }, [membership?.status, refreshMembership])
   if (loading) return <main className="auth-card">Loading secure session…</main>
-  if (membership && membership.status !== 'pending') return <Navigate to={destinationForSession(false, membership)} replace />
+  if (membership && ['active', 'suspended', 'removed'].includes(membership.status)) return <Navigate to={destinationForSession(false, membership)} replace />
   return <main className="auth-card"><h1>Approval pending</h1><p>A Coordinator will review your request. Private batch data remains unavailable until approval.</p></main>
 }
 function Denied() { return <main className="auth-card"><h1>Access unavailable</h1><p>Your batch access is not active. Please contact a Coordinator on WhatsApp.</p></main> }
