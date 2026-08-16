@@ -37,7 +37,7 @@ Authenticate with a staging-only operator account, then seed only synthetic data
 AJINKYANS_DEPLOYMENT_ENV=staging AJINKYANS_STAGING_PROJECT_ID='your-staging-project' AJINKYANS_STAGING_BATCH_ID='2002' npm run seed:staging -- --confirm-demo-seed
 ```
 
-The script requires an explicit staging environment declaration, refuses a project ID that does not contain `staging`, requires a confirmation flag, and creates 50 synthetic members plus 30 synthetic records for each paginated list. It does not create Authentication accounts, media, or Coordinator identities. Run `npm run verify:staging-pagination` with the same staging-only variables before inviting pilot members.
+The script requires an explicit staging environment declaration, refuses a project ID that does not contain `staging`, requires a confirmation flag, and creates 50 synthetic members plus 30 synthetic records for each paginated list. It additionally seeds the reunion launch content the Coordinator would otherwise have to enter by hand: a `confirmed` reunion config with venue, map link, accommodation, logistics, and instructions; three reunion schedule events; two operational contacts; an attendance summary; and payment instructions (collection account label, UPI ID, contribution heads, suggested amount, target). It does not create Authentication accounts, media, Coordinator identities, or the real launch QR (which only the Coordinator uploads through the app). Run `npm run verify:staging-pagination` with the same staging-only variables before inviting pilot members.
 
 ## Backup and restore evidence
 

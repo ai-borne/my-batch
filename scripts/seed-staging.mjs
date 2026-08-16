@@ -16,9 +16,20 @@ if (!/staging/i.test(projectId)) throw new Error('Refusing to seed: AJINKYANS_ST
 
 const app = initializeApp({ credential: applicationDefault(), projectId })
 const db = getFirestore()
-const houses = ['shivaji', 'nehru', 'karve', 'rana-pratap', 'shastri', 'tilak']
 const batch = db.batch()
+const houses = ['shivaji', 'nehru', 'karve', 'rana-pratap', 'shastri', 'tilak']
+const reunionStartDate = new Date('2027-01-10T00:00:00.000Z')
+const rsvpCutoffAt = new Date('2027-01-05T00:00:00.000Z')
 const fixtureTime = (offset) => Timestamp.fromMillis(Date.UTC(2026, 0, 1) + offset * 60_000)
+const scheduleEvents = [
+  { id: 'kickoff', title: 'Welcome and check-in', location: 'Main auditorium', startsAtMinutes: 0, endsAtMinutes: 90 },
+  { id: 'campus-walk', title: 'Campus memory walk', location: 'School grounds', startsAtMinutes: 120, endsAtMinutes: 240 },
+  { id: 'dinner', title: 'Silver Jubilee dinner', location: 'Reunion lawn', startsAtMinutes: 360, endsAtMinutes: 540 },
+]
+const reunionContacts = [
+  { id: 'convener', name: 'Coordinator convener', role: 'Convening Coordinator', phone: '9000000000' },
+  { id: 'finance', name: 'Coordinator finance', role: 'Fund contact', phone: '9000000001' },
+]
 
 batch.set(db.doc(`batches/${batchId}`), { name: 'Ajinkyans 2002 — Staging Demo', isDemo: true, updatedAt: FieldValue.serverTimestamp() }, { merge: true })
 Array.from({ length: memberCount }, (_, index) => index).forEach((index) => {
@@ -27,7 +38,17 @@ Array.from({ length: memberCount }, (_, index) => index).forEach((index) => {
   batch.set(db.doc(`batches/${batchId}/memberships/${uid}`), { uid, batchId, role: 'batchmate', status: 'active', houseId, isDemo: true, updatedAt: FieldValue.serverTimestamp() }, { merge: true })
   batch.set(db.doc(`batches/${batchId}/profiles/${uid}`), { uid, displayName: `Demo Member ${String(index + 1).padStart(2, '0')}`, houseId, isDemo: true, updatedAt: FieldValue.serverTimestamp() }, { merge: true })
 })
-batch.set(db.doc(`batches/${batchId}/reunion/config`), { title: 'Silver Jubilee Reunion', isDemo: true, updatedAt: FieldValue.serverTimestamp() }, { merge: true })
+batch.set(db.doc(`batches/${batchId}/reunion/config`), { status: 'confirmed', title: 'Silver Jubilee Reunion', reunionStartDate: Timestamp.fromDate(reunionStartDate), rsvpCutoffAt: Timestamp.fromDate(rsvpCutoffAt), venue: 'Sainik School Satara', venueMapUrl: 'https://maps.google.com/?q=Satara', accommodation: 'On-campus hostels available for those who reserve in advance.', logistics: 'Arrival is from 0900 hrs; parking is available inside the school grounds.', instructions: 'Carry a government photo ID for campus entry.', isDemo: true, updatedAt: FieldValue.serverTimestamp() }, { merge: true })
+batch.set(db.doc(`batches/${batchId}/reunion/attendance`), { yes: 38, maybe: 12 }, { merge: true })
+scheduleEvents.forEach((event, index) => {
+  const startsAt = new Date(reunionStartDate.getTime() + event.startsAtMinutes * 60_000)
+  const endsAt = new Date(reunionStartDate.getTime() + event.endsAtMinutes * 60_000)
+  batch.set(db.doc(`batches/${batchId}/reunionSchedule/${event.id}`), { title: event.title, location: event.location, startsAt: Timestamp.fromDate(startsAt), endsAt: Timestamp.fromDate(endsAt), sortOrder: index, isDemo: true, createdAt: fixtureTime(index), updatedAt: fixtureTime(index) }, { merge: true })
+})
+reunionContacts.forEach((contact, index) => {
+  batch.set(db.doc(`batches/${batchId}/reunionContacts/${contact.id}`), { name: contact.name, role: contact.role, phone: `+91 ${contact.phone}`, isDemo: true, createdAt: fixtureTime(index), updatedAt: fixtureTime(index) }, { merge: true })
+})
+batch.set(db.doc(`batches/${batchId}/paymentConfig/current`), { currency: 'INR', upiId: 'ajinkyans-demo@upi', accountLabel: 'Reunion collection', defaultFamilyAmountPaise: 3000000, targetPaise: 5000000, contributionHeads: ['Reunion contribution'], qrStoragePath: null, updatedBy: 'demo-coordinator', updatedAt: new Date() }, { merge: true })
 Array.from({ length: listFixtureCount }, (_, index) => index).forEach((index) => {
   const item = String(index + 1).padStart(2, '0')
   const uid = `demo-member-${String((index % memberCount) + 1).padStart(2, '0')}`

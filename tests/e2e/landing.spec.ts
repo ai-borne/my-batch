@@ -61,12 +61,21 @@ test('directory profile navigation remains usable at mobile, tablet, and desktop
   }
 })
 
-test('shell reflows without horizontal overflow at every P0 viewport', async ({ page }) => {
+test('shell reflows without horizontal overflow at every launch viewport', async ({ page }) => {
   await signIn(page, 'coordinator@example.test')
-  for (const viewport of [{ width: 375, height: 812 }, { width: 768, height: 1024 }, { width: 1024, height: 768 }, { width: 1280, height: 800 }]) {
+  const content = page.locator('main')
+  for (const viewport of [{ width: 375, height: 812 }, { width: 768, height: 1024 }, { width: 1024, height: 768 }, { width: 1280, height: 800 }, { width: 1440, height: 900 }]) {
     await page.setViewportSize(viewport)
     await page.goto('/home')
     expect(await page.locator('body').evaluate((body) => body.scrollWidth <= body.clientWidth)).toBe(true)
+    await expect(content).toBeVisible()
+    // Launch gate: the primary content is not fully obscured by fixed chrome in the first viewport.
+    const unobscured = await content.evaluate((element) => {
+      const bounds = element.getBoundingClientRect()
+      const viewportHeight = window.innerHeight || document.documentElement.clientHeight
+      return bounds.top < viewportHeight && bounds.bottom > 0
+    })
+    expect(unobscured).toBe(true)
     const mobileNav = page.locator('.bottom-nav')
     if (viewport.width < 768) {
       await expect(mobileNav).toBeVisible()
