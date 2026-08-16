@@ -36,6 +36,8 @@ async function seedE2E() {
   }
   await db.doc(`batches/${batchId}/memberships/directory-0`).set({ uid: 'directory-0', status: 'active', role: 'batchmate', houseId: 'nehru' })
   await db.doc(`batches/${batchId}/profiles/directory-0`).set({ uid: 'directory-0', displayName: 'Directory Member 01', houseId: 'nehru', city: 'Pune', profession: 'Engineer', about: 'Private directory profile.' })
+  await db.doc(`batches/${batchId}/profiles/member`).set({ uid: 'member', displayName: 'Test Member', city: 'Pune', profession: 'Engineer', updatedAt: now })
+  await db.doc(`batches/${batchId}/profiles/coordinator`).set({ uid: 'coordinator', displayName: 'Coordinator Member', city: 'Pune', updatedAt: now })
 }
 
 module.exports = { seedE2E }

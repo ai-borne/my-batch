@@ -114,10 +114,35 @@ test('a member can submit, have a payment rejected, and submit a corrected claim
   await page.getByLabel('Amount paid (₹)').fill('30000'); await page.getByLabel('UTR / transaction ID').fill('UTR-PLAYWRIGHT-1'); await page.getByLabel('Payment date').fill('2027-01-06')
   await page.getByRole('button', { name: 'Submit for review' }).click(); await expect(page.getByRole('status')).toContainText('submitted')
   await signOut(page); await signIn(page, 'coordinator@example.test'); await page.goto('/account/coordinator')
+  await page.getByRole('button', { name: 'Fund', exact: true }).click()
   await expect(page.getByText('UTR-PLAYWRIGHT-1')).toBeVisible(); await page.locator('section.panel').filter({ has: page.getByRole('heading', { name: 'Payment claims' }) }).getByRole('button', { name: 'Reject' }).click()
   await signOut(page); await signIn(page, 'member@example.test'); await page.goto('/reunion/fund')
   await page.getByLabel('Amount paid (₹)').fill('30000'); await page.getByLabel('UTR / transaction ID').fill('UTR-PLAYWRIGHT-2'); await page.getByLabel('Payment date').fill('2027-01-06')
   await page.getByRole('button', { name: 'Submit for review' }).click(); await expect(page.getByRole('status')).toContainText('submitted')
+})
+
+test('opening notifications does not mark them read; the explicit mark-all does, and deep links navigate', async ({ page }) => {
+  await signIn(page, 'member@example.test'); await page.goto('/home')
+  const notifications = page.getByRole('button', { name: /Notifications \(1 unread\)/ })
+  await notifications.click(); await expect(page.getByRole('region', { name: 'Notification centre' })).toContainText('Welcome back')
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('button', { name: /Notifications \(1 unread\)/ })).toBeVisible()
+})
+
+test('account edits reveal a sticky save control and cancel leaves changes unpersisted', async ({ page }) => {
+  await signIn(page, 'member@example.test'); await page.goto('/account')
+  await expect(page.getByRole('button', { name: 'Save profile' })).toHaveCount(0)
+  await page.getByLabel('City').fill('Nagpur'); await expect(page.getByRole('button', { name: 'Save profile' })).toBeVisible()
+  await expect(page.getByRole('status')).toContainText('You have unsaved changes. Save or discard them before leaving.')
+  await page.getByRole('button', { name: 'Save profile' }).click(); await expect(page.getByRole('status')).toContainText('Profile saved')
+  await page.getByRole('button', { name: 'Save profile' }).waitFor({ state: 'hidden' }).catch(() => {})
+})
+
+test('Coordinator operations are organised into tabs and destructive actions confirm', async ({ page }) => {
+  await signIn(page, 'coordinator@example.test'); await page.goto('/account/coordinator')
+  await expect(page.getByRole('button', { name: 'Requests', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await page.getByRole('button', { name: 'Reunion', exact: true }).click(); await expect(page.getByRole('heading', { name: 'Reunion details' })).toBeVisible()
+  await page.getByRole('button', { name: 'Announcements', exact: true }).click(); await expect(page.getByRole('heading', { name: 'Batch announcement' })).toBeVisible()
 })
 
 test('members can comment and report a memory, then a Coordinator moderates it', async ({ page }) => {

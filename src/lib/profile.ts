@@ -34,3 +34,10 @@ function socialValues(input: Record<string, FormDataEntryValue>): SocialLinks {
 
 export function loadTheme(): ThemePreference { const value = localStorage.getItem('ajinkyans-theme'); return themeOptions.includes(value as ThemePreference) ? value as ThemePreference : 'system' }
 export function applyTheme(preference: ThemePreference) { localStorage.setItem('ajinkyans-theme', preference); document.documentElement.dataset.theme = preference }
+
+const editableFields = ['displayName', 'city', 'profession', 'about', 'favouriteSchoolMemory', 'teacherOrActivity'] as const
+export function hasProfileChanges(base: Partial<MemberProfile> | undefined, input: Record<string, string>): boolean {
+  const source = base ?? {}
+  return editableFields.some((key) => String(input[key] ?? '').trim() !== String(source[key] ?? '').trim())
+    || Object.values(['linkedin', 'instagram', 'website'] as const).some((key) => (input[key] ?? '') !== (source.socialLinks?.[key] ?? ''))
+}
