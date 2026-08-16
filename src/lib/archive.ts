@@ -6,6 +6,7 @@ export const MAX_IMAGE_DIMENSION = 8_000
 export type ArchiveView = 'all' | 'photos' | 'videos' | 'albums'
 export type ArchiveMedia = { path: string; mimeType: string }
 export type ArchivePost = { media?: ArchiveMedia[] }
+export type ArchiveAuthor = { authorUid?: string; authorDisplayName?: string }
 
 export function archiveMediaLimit(type: string) { return type.startsWith('image/') ? 20 * 1024 * 1024 : 250 * 1024 * 1024 }
 
@@ -26,4 +27,12 @@ export function matchesArchiveView(post: ArchivePost, view: Exclude<ArchiveView,
   if (view === 'all') return true
   const prefix = view === 'photos' ? 'image/' : 'video/'
   return post.media?.some((media) => media.mimeType.startsWith(prefix)) ?? false
+}
+
+export function archiveAuthorName(author: ArchiveAuthor) {
+  return author.authorDisplayName?.trim() || 'Batchmate'
+}
+
+export function mediaAlternative(media: Pick<ArchiveMedia, 'mimeType'>, authorName: string) {
+  return `${media.mimeType.startsWith('video/') ? 'Video memory' : 'Memory'} shared by ${authorName}`
 }

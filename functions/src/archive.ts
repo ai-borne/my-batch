@@ -20,6 +20,11 @@ function text(value: unknown, field: string, max: number, required = true) {
 async function audit(batchId: string, actorUid: string, action: string, targetId?: string) {
   await db.collection(`batches/${batchId}/auditEvents`).add({ actorUid, action, ...(targetId ? { targetId } : {}), createdAt: FieldValue.serverTimestamp(), outcome: 'success' })
 }
+async function authorIdentity(batchId: string, uid: string) {
+  const profile = await db.doc(`batches/${batchId}/profiles/${uid}`).get()
+  const displayName = profile.data()?.displayName
+  return typeof displayName === 'string' && displayName.trim() ? { authorDisplayName: displayName.trim() } : {}
+}
 function mediaPath(batchId: string, type: 'posts' | 'albums', id: string, path: unknown) {
   if (typeof path !== 'string' || !path.startsWith(`batches/${batchId}/${type}/${id}/media/`)) throw new HttpsError('invalid-argument', 'The media path is invalid.')
   return path
@@ -71,6 +76,7 @@ export const createPost = secureCall(async (request) => {
   await limitCallable(batchId, uid, 'createPost')
   if (consentConfirmed !== true) throw new HttpsError('failed-precondition', 'Content consent must be confirmed.')
   const postCaption = text(caption, 'caption', 2_000, false)
+  const identity = await authorIdentity(batchId, uid)
   const selectedAlbumId = albumId === undefined || albumId === null || albumId === '' ? undefined : albumId
   if (selectedAlbumId !== undefined) {
     if (typeof selectedAlbumId !== 'string' || !(await db.doc(`batches/${batchId}/albums/${selectedAlbumId}`).get()).exists) throw new HttpsError('not-found', 'Album was not found.')
@@ -82,7 +88,7 @@ export const createPost = secureCall(async (request) => {
       if (existing.data()?.authorUid !== uid) throw new HttpsError('already-exists', 'A request with this key already exists.')
       return
     }
-    transaction.create(ref, { batchId, authorUid: uid, ...(postCaption ? { caption: postCaption } : {}), ...(typeof selectedAlbumId === 'string' ? { albumId: selectedAlbumId } : {}), ...metadata(request.data as Record<string, unknown>), status: 'visible', media: [], retentionUntil: archiveRetentionUntil, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() })
+    transaction.create(ref, { batchId, authorUid: uid, ...identity, ...(postCaption ? { caption: postCaption } : {}), ...(typeof selectedAlbumId === 'string' ? { albumId: selectedAlbumId } : {}), ...metadata(request.data as Record<string, unknown>), status: 'visible', media: [], retentionUntil: archiveRetentionUntil, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() })
   })
   return { postId: ref.id }
 })
@@ -93,6 +99,7 @@ export const createAlbum = secureCall(async (request) => {
   await limitCallable(batchId, uid, 'createAlbum')
   if (consentConfirmed !== true) throw new HttpsError('failed-precondition', 'Content consent must be confirmed.')
   const albumDescription = text(description, 'description', 1_000, false)
+  const identity = await authorIdentity(batchId, uid)
   const ref = db.collection(`batches/${batchId}/albums`).doc(requireIdempotencyKey(requestId))
   await db.runTransaction(async (transaction) => {
     const existing = await transaction.get(ref)
@@ -100,7 +107,7 @@ export const createAlbum = secureCall(async (request) => {
       if (existing.data()?.authorUid !== uid) throw new HttpsError('already-exists', 'A request with this key already exists.')
       return
     }
-    transaction.create(ref, { batchId, authorUid: uid, title: text(title, 'title', 120), ...(albumDescription ? { description: albumDescription } : {}), status: 'visible', media: [], retentionUntil: archiveRetentionUntil, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() })
+    transaction.create(ref, { batchId, authorUid: uid, ...identity, title: text(title, 'title', 120), ...(albumDescription ? { description: albumDescription } : {}), status: 'visible', media: [], retentionUntil: archiveRetentionUntil, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() })
   })
   return { albumId: ref.id }
 })
@@ -170,13 +177,14 @@ export const saveArchiveComment = secureCall(async (request) => {
   const post = await db.doc(`batches/${batchId}/posts/${postId}`).get()
   if (!post.exists || post.data()?.status !== 'visible') throw new HttpsError('not-found', 'Post was not found.')
   const ref = db.collection(`batches/${batchId}/posts/${postId}/comments`).doc(requireIdempotencyKey(requestId))
+  const identity = await authorIdentity(batchId, uid)
   await db.runTransaction(async (transaction) => {
     const existing = await transaction.get(ref)
     if (existing.exists) {
       if (existing.data()?.authorUid !== uid) throw new HttpsError('already-exists', 'A request with this key already exists.')
       return
     }
-    transaction.create(ref, { authorUid: uid, body: text(body, 'body', 1_000), status: 'visible', createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() })
+    transaction.create(ref, { authorUid: uid, ...identity, body: text(body, 'body', 1_000), status: 'visible', createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() })
   })
   return { commentId: ref.id }
 })
@@ -209,7 +217,6 @@ export const reportArchiveContent = secureCall(async (request) => {
   })
   return { reportId: ref.id }
 })
-
 export const deleteOwnPost = secureCall(async (request) => {
   const { batchId, postId } = request.data as Record<string, unknown>
   requireBatchId(batchId); const uid = requireUid(request.auth); await requireActiveMember(batchId, uid)
@@ -222,7 +229,6 @@ export const deleteOwnPost = secureCall(async (request) => {
   await audit(batchId, uid, 'archive.post.deleted', postId)
   return { deleted: true }
 })
-
 export const deleteOwnComment = secureCall(async (request) => {
   const { batchId, postId, commentId } = request.data as Record<string, unknown>
   requireBatchId(batchId); const uid = requireUid(request.auth); await requireActiveMember(batchId, uid)
@@ -234,7 +240,6 @@ export const deleteOwnComment = secureCall(async (request) => {
   await audit(batchId, uid, 'archive.comment.deleted', commentId)
   return { deleted: true }
 })
-
 export const cleanupArchiveOrphans = secureCall(async (request) => {
   const { batchId } = request.data as Record<string, unknown>
   requireBatchId(batchId); const uid = requireUid(request.auth); await requireCoordinator(batchId, request.auth)
@@ -255,7 +260,6 @@ export const cleanupArchiveOrphans = secureCall(async (request) => {
   await audit(batchId, uid, 'archive.orphans.cleaned')
   return { deleted }
 })
-
 async function expireArchiveCollection(collectionName: 'posts' | 'albums') {
   const expired = await db.collectionGroup(collectionName).where('retentionUntil', '<=', Timestamp.now()).limit(25).get()
   await Promise.all(expired.docs.map(async (item) => {
@@ -264,12 +268,10 @@ async function expireArchiveCollection(collectionName: 'posts' | 'albums') {
   }))
   return expired.size
 }
-
 export const executeArchiveRetention = onSchedule('every day 03:00', async () => {
   const [posts, albums] = await Promise.all([expireArchiveCollection('posts'), expireArchiveCollection('albums')])
   console.info('Archive retention complete', { posts, albums })
 })
-
 export const moderateArchiveContent = secureCall(async (request) => {
   const { batchId, reportId, action, reason } = request.data as Record<string, unknown>
   requireBatchId(batchId); const uid = requireUid(request.auth); await requireCoordinator(batchId, request.auth)
@@ -292,7 +294,7 @@ export const moderateArchiveContent = secureCall(async (request) => {
   await reportRef.update({ status: action === 'dismiss' ? 'dismissed' : 'resolved', resolution: action, resolvedBy: uid, resolvedAt: FieldValue.serverTimestamp(), ...(note ? { resolutionReason: note } : {}), updatedAt: FieldValue.serverTimestamp() })
   const target = targetRef && await targetRef.get()
   const authorUid = target?.data()?.authorUid
-  if (typeof authorUid === 'string') await notify(batchId, authorUid, 'moderation', 'Moderation outcome', action === 'dismiss' ? 'A report about your content was dismissed.' : `A Coordinator reviewed your content: ${action}.`)
+  if (typeof authorUid === 'string') await notify(batchId, authorUid, 'moderation', 'Moderation outcome', action === 'dismiss' ? 'A report about your content was dismissed.' : `A Coordinator reviewed your content: ${action}. To appeal a removal, use the WhatsApp support route in Account.`)
   await audit(batchId, uid, `moderation.${action}`, targetId)
   return { moderated: true }
 })

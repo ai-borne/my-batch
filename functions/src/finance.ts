@@ -65,15 +65,35 @@ export const attachPaymentEvidence = secureCall(async (request) => {
   const uid = requireUid(request.auth); await requireActiveMember(batchId, uid)
   await limitCallable(batchId, uid, 'attachPaymentEvidence')
   const ref = db.doc(`batches/${batchId}/paymentClaims/${claimId}`); const claim = await ref.get()
-  if (!claim.exists || claim.data()?.memberUid !== uid || !['submitted', 'underReview'].includes(String(claim.data()?.status))) throw new HttpsError('permission-denied', 'You cannot attach evidence to this claim.')
+  if (!claim.exists || claim.data()?.memberUid !== uid || !['submitted', 'underReview', 'clarificationRequired', 'rejected', 'resubmitted'].includes(String(claim.data()?.status))) throw new HttpsError('permission-denied', 'You cannot attach evidence to this claim.')
   await ref.update({ screenshotStoragePath, updatedAt: FieldValue.serverTimestamp() })
   return { attached: true }
+})
+
+export const resubmitPaymentClaim = secureCall(async (request) => {
+  const { batchId, claimId, amountPaise, utr, paymentDate, contributionHead, screenshotStoragePath } = request.data as Record<string, unknown>
+  requireBatchId(batchId); const uid = requireUid(request.auth); await requireActiveMember(batchId, uid)
+  await limitCallable(batchId, uid, 'resubmitPaymentClaim')
+  if (typeof claimId !== 'string' || !claimId) throw new HttpsError('invalid-argument', 'A claim is required.')
+  const amount = requirePaise(amountPaise, 'amountPaise'); const transactionId = requireText(utr, 'utr', 100); const head = requireText(contributionHead, 'contributionHead', 80)
+  if (typeof paymentDate !== 'string' || Number.isNaN(Date.parse(paymentDate))) throw new HttpsError('invalid-argument', 'paymentDate is invalid.')
+  const config = await db.doc(`batches/${batchId}/paymentConfig/current`).get()
+  if (!Array.isArray(config.data()?.contributionHeads) || !config.data()?.contributionHeads.includes(head)) throw new HttpsError('invalid-argument', 'Select a configured contribution head.')
+  if (screenshotStoragePath !== undefined && (typeof screenshotStoragePath !== 'string' || !screenshotStoragePath.startsWith(`batches/${batchId}/payments/${claimId}/evidence/`))) throw new HttpsError('invalid-argument', 'The payment evidence path is invalid.')
+  await db.runTransaction(async (transaction) => {
+    const ref = db.doc(`batches/${batchId}/paymentClaims/${claimId}`); const claim = await transaction.get(ref)
+    if (!claim.exists || claim.data()?.memberUid !== uid) throw new HttpsError('permission-denied', 'You cannot resubmit this claim.')
+    if (!['clarificationRequired', 'rejected'].includes(String(claim.data()?.status))) throw new HttpsError('failed-precondition', 'This payment claim cannot be resubmitted.')
+    transaction.update(ref, { amountPaise: amount, utr: transactionId, paymentDate: new Date(paymentDate), contributionHead: head, status: 'resubmitted', ...(screenshotStoragePath ? { screenshotStoragePath } : {}), resubmittedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() })
+    transaction.create(db.collection(`batches/${batchId}/auditEvents`).doc(), { actorUid: uid, action: 'payment.resubmitted', targetUid: uid, targetId: claimId, createdAt: FieldValue.serverTimestamp(), outcome: 'success' })
+  })
+  return { resubmitted: true, claimId }
 })
 
 export const reviewPaymentClaim = secureCall(async (request) => {
   const { batchId, claimId, status, note } = request.data as Record<string, unknown>
   requireBatchId(batchId)
-  if (typeof claimId !== 'string' || !claimId || !['underReview', 'verified', 'rejected'].includes(String(status))) throw new HttpsError('invalid-argument', 'A claim and valid review status are required.')
+  if (typeof claimId !== 'string' || !claimId || !['underReview', 'clarificationRequired', 'verified', 'rejected'].includes(String(status))) throw new HttpsError('invalid-argument', 'A claim and valid review status are required.')
   if (note !== undefined && (typeof note !== 'string' || note.length > 1000)) throw new HttpsError('invalid-argument', 'Review note is invalid.')
   const actorUid = requireUid(request.auth)
   await requireCoordinator(batchId, request.auth)
@@ -86,11 +106,11 @@ export const reviewPaymentClaim = secureCall(async (request) => {
     const nextStatus = String(status)
     const currentStatus = String(claim.data()?.status)
     if (currentStatus === nextStatus) return false
-    if (!((currentStatus === 'submitted' && ['underReview', 'verified', 'rejected'].includes(nextStatus)) || (currentStatus === 'underReview' && ['verified', 'rejected'].includes(nextStatus)))) {
+    if (!((currentStatus === 'submitted' && ['underReview', 'clarificationRequired', 'verified', 'rejected'].includes(nextStatus)) || (currentStatus === 'underReview' && ['clarificationRequired', 'verified', 'rejected'].includes(nextStatus)) || (currentStatus === 'resubmitted' && ['underReview', 'clarificationRequired', 'verified', 'rejected'].includes(nextStatus)))) {
       throw new HttpsError('failed-precondition', 'This payment transition is not allowed.')
     }
     if (nextStatus === 'verified' || claim.data()?.status === 'verified') await writeFundSummary(transaction, batchId, { collection: 'paymentClaims', id: claimId, status: nextStatus })
-    transaction.update(claimRef, { status, reviewedBy: actorUid, reviewedAt: FieldValue.serverTimestamp(), ...(status === 'rejected' ? { rejectionReason: note ?? 'Unable to verify this payment.' } : {}), ...(status === 'underReview' ? { clarificationNote: note ?? 'Coordinator is reviewing this payment.' } : {}), updatedAt: FieldValue.serverTimestamp() })
+    transaction.update(claimRef, { status, reviewedBy: actorUid, reviewedAt: FieldValue.serverTimestamp(), ...(status === 'rejected' ? { rejectionReason: note ?? 'Unable to verify this payment.' } : {}), ...(status === 'clarificationRequired' ? { clarificationNote: note ?? 'Please correct the payment details and resubmit.' } : {}), updatedAt: FieldValue.serverTimestamp() })
     transaction.create(db.collection(`batches/${batchId}/auditEvents`).doc(), { actorUid, action: `payment.${status}`, targetUid: claim.data()?.memberUid, targetId: claimId, createdAt: FieldValue.serverTimestamp(), outcome: 'success' })
     return true
   })

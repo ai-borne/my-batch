@@ -20,6 +20,13 @@ export function paymentClaimPresentation(state: PaymentClaimState | string | nul
   return CLAIM_PRESENTATION[(PAYMENT_CLAIM_STATES as readonly string[]).includes(state ?? '') ? state as PaymentClaimState : 'draft']
 }
 
+/** Maps legacy callable values to the one member-facing state vocabulary. */
+export function paymentClaimState(state: string | null | undefined): PaymentClaimState {
+  const aliases: Record<string, PaymentClaimState> = { underReview: 'under_review', clarificationRequired: 'clarification_required' }
+  const candidate = aliases[state ?? ''] ?? state
+  return (PAYMENT_CLAIM_STATES as readonly string[]).includes(candidate ?? '') ? candidate as PaymentClaimState : 'draft'
+}
+
 export function canTransitionPaymentClaim(from: PaymentClaimState, to: PaymentClaimState): boolean {
   return PAYMENT_CLAIM_TRANSITIONS[from].includes(to)
 }

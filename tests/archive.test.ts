@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { matchesArchiveView, validateArchiveMedia } from '../src/lib/archive'
+import { archiveAuthorName, matchesArchiveView, mediaAlternative, validateArchiveMedia } from '../src/lib/archive'
 
 describe('Phase 5 archive contracts', () => {
   it('accepts only bounded supported media and bounded videos', () => {
@@ -14,5 +14,12 @@ describe('Phase 5 archive contracts', () => {
     expect(matchesArchiveView(photo, 'photos')).toBe(true)
     expect(matchesArchiveView(photo, 'videos')).toBe(false)
     expect(matchesArchiveView(video, 'videos')).toBe(true)
+  })
+
+  it('renders privacy-safe display identities and contextual media alternatives', () => {
+    expect(archiveAuthorName({ authorDisplayName: 'Asha Rao', authorUid: 'private-id' })).toBe('Asha Rao')
+    expect(archiveAuthorName({ authorUid: 'private-id' })).toBe('Batchmate')
+    expect(mediaAlternative({ mimeType: 'image/jpeg' }, 'Asha Rao')).toBe('Memory shared by Asha Rao')
+    expect(mediaAlternative({ mimeType: 'video/mp4' }, 'Asha Rao')).toBe('Video memory shared by Asha Rao')
   })
 })

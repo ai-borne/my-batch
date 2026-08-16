@@ -32,7 +32,7 @@ describe('private batch boundaries', () => {
   it('denies unauthenticated and pending reads', async () => { const anonymous = db(); const pending = db('pending'); await assertFails(anonymous.doc('batches/batch-a/profiles/member').get()); await assertFails(pending.doc('batches/batch-a/profiles/member').get()) })
   it('revokes private access immediately for suspended members', async () => { await assertFails(db('suspended').doc('batches/batch-a/profiles/member').get()) })
   it('allows active members only within their batch', async () => { const member = db('member'); const otherBatch = db('other-batch'); await assertSucceeds(member.doc('batches/batch-a/profiles/member').get()); await assertFails(otherBatch.doc('batches/batch-a/profiles/member').get()) })
-  it('keeps payment claims Coordinator-only', async () => { const member = db('member'); const coordinator = db('coordinator'); await assertFails(member.doc('batches/batch-a/paymentClaims/claim').get()); await assertSucceeds(coordinator.doc('batches/batch-a/paymentClaims/claim').get()) })
+  it('lets a member read only their own claim while keeping every other member claim Coordinator-only', async () => { const member = db('member'); const coordinator = db('coordinator'); const otherBatch = db('other-batch'); await assertSucceeds(member.doc('batches/batch-a/paymentClaims/claim').get()); await assertFails(otherBatch.doc('batches/batch-a/paymentClaims/claim').get()); await assertSucceeds(coordinator.doc('batches/batch-a/paymentClaims/claim').get()) })
   it('exposes only aggregate finances and approved expenses to batchmates', async () => {
     const member = db('member')
     await assertSucceeds(member.doc('batches/batch-a/fundSummary/public').get())

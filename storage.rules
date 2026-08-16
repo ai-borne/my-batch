@@ -29,7 +29,7 @@ service firebase.storage {
     }
     match /batches/{batchId}/payments/{claimId}/evidence/{fileName} {
       allow read: if coordinator(batchId);
-      allow create: if active(batchId) && image() && firestore.get(/databases/(default)/documents/batches/$(batchId)/paymentClaims/$(claimId)).data.memberUid == request.auth.uid && firestore.get(/databases/(default)/documents/batches/$(batchId)/paymentClaims/$(claimId)).data.status in ['submitted', 'underReview'];
+      allow create: if active(batchId) && image() && firestore.get(/databases/(default)/documents/batches/$(batchId)/paymentClaims/$(claimId)).data.memberUid == request.auth.uid && firestore.get(/databases/(default)/documents/batches/$(batchId)/paymentClaims/$(claimId)).data.status in ['submitted', 'underReview', 'clarificationRequired', 'rejected', 'resubmitted'];
       allow update, delete: if coordinator(batchId);
     }
     match /batches/{batchId}/expenses/{expenseId}/receipts/{fileName} {

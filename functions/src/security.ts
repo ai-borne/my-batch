@@ -25,6 +25,7 @@ export const callablePolicies = {
   moderateArchiveContent: { limit: 10, windowSeconds: 600, rationale: 'moderation changes are material' },
   publishAnnouncement: { limit: 3, windowSeconds: 600, rationale: 'fan-out notification control' },
   rebuildFundSummary: { limit: 3, windowSeconds: 600, rationale: 'summary rebuild reads financial records' },
+  resubmitPaymentClaim: { limit: 6, windowSeconds: 600, rationale: 'payment correction abuse control' },
   rejectMembership: { limit: 5, windowSeconds: 600, rationale: 'membership changes are material' },
   reopenRsvp: { limit: 10, windowSeconds: 600, rationale: 'Coordinator RSVP override' },
   recordTelemetry: { limit: 20, windowSeconds: 600, rationale: 'limits operational telemetry ingestion' },

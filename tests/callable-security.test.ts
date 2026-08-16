@@ -6,7 +6,7 @@ const callableExports = [
   'cleanupArchiveOrphans', 'createAlbum', 'createPost', 'deleteOwnComment', 'deleteOwnPost', 'manageAlbum',
   'manageMembership', 'markNotificationsRead', 'moderateArchiveContent', 'publishAnnouncement', 'rebuildFundSummary',
   'rejectMembership', 'reopenRsvp', 'reportArchiveContent', 'requestProfileDataChange', 'reviewExpense',
-  'reviewPaymentClaim', 'saveArchiveComment', 'saveExpense', 'setArchiveLike', 'submitPaymentClaim', 'submitRsvp', 'updateOwnPost',
+  'resubmitPaymentClaim', 'reviewPaymentClaim', 'saveArchiveComment', 'saveExpense', 'setArchiveLike', 'submitPaymentClaim', 'submitRsvp', 'updateOwnPost',
 ]
 
 describe('GS-1 callable controls', () => {

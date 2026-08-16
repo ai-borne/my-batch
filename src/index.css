@@ -106,10 +106,14 @@ h2 { font-size: 20px; letter-spacing: -.035em; margin-bottom: 6px; }
 .bottom-nav { position: fixed; z-index: 10; left: 50%; bottom: max(12px, env(safe-area-inset-bottom)); transform: translateX(-50%); width: min(calc(100% - 24px), 680px); display: grid; grid-template-columns: repeat(5, 1fr); padding: 7px; border: 1px solid var(--border); border-radius: 19px; background: var(--surface-elevated); backdrop-filter: blur(18px); box-shadow: var(--elevation-raised); }
 .archive-media { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin: 14px 0; }
 .archive-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.share-steps { display: grid; gap: 4px; margin: 0; padding-left: 24px; color: var(--color-muted); }
 .archive-tabs button { background: transparent; color: inherit; border: 1px solid var(--color-border); }
 .archive-tabs button.active { background: var(--color-primary); color: var(--color-white); }
 .archive-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
 .archive-media img, .archive-media video { width: 100%; max-height: 360px; border-radius: 10px; object-fit: cover; background: var(--color-text); }
+.archive-media-button { min-height: 0; padding: 0; background: transparent; }
+.archive-lightbox { width: min(960px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 16px; border: 1px solid var(--color-border); border-radius: 16px; background: var(--color-white); }
+.archive-lightbox::backdrop { background: var(--color-overlay); }.archive-lightbox button { display: block; margin: 0 0 12px auto; }.archive-lightbox img { display: block; max-width: 100%; max-height: calc(100vh - 140px); margin: auto; object-fit: contain; }
 .comments { display: grid; gap: 4px; margin: 14px 0; color: var(--color-muted); font-size: 14px; }
 .comments p { margin: 0; }
 .comment-form { display: flex; gap: 8px; }

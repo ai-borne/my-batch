@@ -2,7 +2,7 @@ export { addArchiveMedia, cleanupArchiveOrphans, createAlbum, createPost, delete
 export { approveMembership, bootstrapCoordinator, listBootstrapCandidates, manageMembership, rejectMembership, requestProfileDataChange } from './membership.js'
 export { assignCoordinator, executeAuditRetention, listGovernanceAuditEvents, listGovernanceMembers } from './admin.js'
 export { reopenRsvp, submitRsvp } from './reunion.js'
-export { attachExpenseReceipt, attachPaymentEvidence, rebuildFundSummary, reviewExpense, reviewPaymentClaim, saveExpense, submitPaymentClaim } from './finance.js'
+export { attachExpenseReceipt, attachPaymentEvidence, rebuildFundSummary, resubmitPaymentClaim, reviewExpense, reviewPaymentClaim, saveExpense, submitPaymentClaim } from './finance.js'
 export { markNotificationsRead, publishAnnouncement } from './notifications.js'
 export { recordTelemetry } from './telemetry.js'
 export { listDirectoryHouses, listDirectoryMembers, syncDirectoryMembership, syncDirectoryProfile } from './directory.js'
