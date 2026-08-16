@@ -6,6 +6,9 @@ export const COPY = {
   cancel: 'Cancel',
   working: 'Working…',
   dialogActionFailed: 'Could not complete that action. Please try again.',
+  shell: {
+    signOut: 'Sign out',
+  },
   resilience: {
     offline: 'You’re offline. Previously opened app screens remain available; private data will refresh when you reconnect.',
     errorTitle: 'Something went wrong',

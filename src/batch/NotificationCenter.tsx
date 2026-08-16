@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Bell } from 'lucide-react'
 import { collection, DocumentData, getDocs, limit, orderBy, query, QueryDocumentSnapshot, startAfter } from 'firebase/firestore/lite'
 import { httpsCallable } from 'firebase/functions'
 import { useAuth } from '../auth/AuthProvider'
@@ -31,5 +32,5 @@ export function NotificationCenter() {
     setItems((current) => [...current, ...snapshots.docs.map((item) => ({ id: item.id, ...item.data() } as Notification))]); setCursor(snapshots.docs.at(-1)); setHasMore(snapshots.size === PAGE_SIZE)
   }
   const unread = unreadCount(items)
-  return <div className="notification-center"><button className="text-button" aria-label={`Notifications${unread ? ` (${unread} unread)` : ''}`} aria-expanded={open} onClick={() => { setOpen(!open); if (!open) void markRead() }}>Notifications{unread ? ` (${unread})` : ''}</button>{open && <section className="notification-panel" aria-label="Notification centre"><h2>Notifications</h2>{items.length ? items.map((item) => <article key={item.id} className="notification-item"><strong>{item.title}</strong><p>{item.body}</p></article>) : <p className="muted">You have no notifications.</p>}{hasMore && <button type="button" onClick={() => void loadMore()}>Load more notifications</button>}</section>}</div>
+  return <div className="notification-center"><button className="ui-icon-button notification-trigger" aria-label={`Notifications${unread ? ` (${unread} unread)` : ''}`} aria-expanded={open} onClick={() => { setOpen(!open); if (!open) void markRead() }}><Bell aria-hidden="true" size={20} /><span className="notification-count" aria-hidden="true">{unread || ''}</span></button>{open && <section className="notification-panel" aria-label="Notification centre"><h2>Notifications</h2>{items.length ? items.map((item) => <article key={item.id} className="notification-item"><strong>{item.title}</strong><p>{item.body}</p></article>) : <p className="muted">You have no notifications.</p>}{hasMore && <button type="button" onClick={() => void loadMore()}>Load more notifications</button>}</section>}</div>
 }

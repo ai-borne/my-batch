@@ -46,6 +46,21 @@ test('desktop keeps matching top navigation without the mobile bar', async ({ pa
   await expect(navigation.getByRole('link')).toHaveCount(5)
 })
 
+test('shell reflows without horizontal overflow at every P0 viewport', async ({ page }) => {
+  await signIn(page, 'coordinator@example.test')
+  for (const viewport of [{ width: 375, height: 812 }, { width: 768, height: 1024 }, { width: 1024, height: 768 }, { width: 1280, height: 800 }]) {
+    await page.setViewportSize(viewport)
+    await page.goto('/home')
+    expect(await page.locator('body').evaluate((body) => body.scrollWidth <= body.clientWidth)).toBe(true)
+    const mobileNav = page.locator('.bottom-nav')
+    if (viewport.width < 768) {
+      await expect(mobileNav).toBeVisible()
+      await expect(mobileNav.getByRole('link')).toHaveCount(5)
+      await expect(mobileNav.locator('svg')).toHaveCount(5)
+    } else await expect(mobileNav).toBeHidden()
+  }
+})
+
 test('mobile notification centre is keyboard-accessible and displays member-scoped updates', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await signIn(page, 'member@example.test'); await page.goto('/home')
@@ -65,7 +80,7 @@ test('critical member controls retain accessible landmarks, keyboard operation, 
   expect(await page.locator('body').evaluate((body) => body.scrollWidth <= body.clientWidth)).toBe(true)
   expect(await page.locator('.topbar-actions button, .desktop-nav a, .bottom-nav a, .button-link').evaluateAll((controls) => controls.filter((control) => control.getClientRects().length > 0).filter((control) => {
     const bounds = control.getBoundingClientRect()
-    return bounds.width < 44 || bounds.height < 44
+    return bounds.width < 48 || bounds.height < 48
   }).map((control) => (control as HTMLElement).innerText || control.getAttribute('aria-label')))).toEqual([])
   await page.emulateMedia({ reducedMotion: 'reduce' })
   expect(Number.parseFloat(await page.locator('.app').evaluate((app) => getComputedStyle(app).transitionDuration))).toBeLessThanOrEqual(0.00001)

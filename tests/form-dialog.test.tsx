@@ -21,4 +21,20 @@ describe('FormDialog', () => {
     view.unmount()
     expect(trigger).toHaveFocus()
   })
+
+  test('keeps keyboard focus inside the dialog and lets Escape close it', async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    render(<FormDialog title="Confirm change" description="Confirm the requested change." submitLabel="Confirm" returnFocus={null} onClose={onClose} onSubmit={vi.fn()}><label>Reason<input data-dialog-focus /></label></FormDialog>)
+
+    const reason = screen.getByLabelText('Reason')
+    await user.tab()
+    expect(screen.getByRole('button', { name: 'Cancel' })).toHaveFocus()
+    await user.tab()
+    expect(screen.getByRole('button', { name: 'Confirm' })).toHaveFocus()
+    await user.tab()
+    expect(reason).toHaveFocus()
+    await user.keyboard('{Escape}')
+    expect(onClose).toHaveBeenCalledOnce()
+  })
 })
