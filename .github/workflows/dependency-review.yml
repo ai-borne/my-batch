@@ -1,21 +1,35 @@
 name: dependency-review
 
 on:
+  pull_request:
+    branches: [main]
   schedule:
     - cron: '0 9 * * 1'
   workflow_dispatch:
 
 permissions:
   contents: read
+  pull-requests: write
 
 jobs:
-  production-audit:
+  audit:
+    # Full dependency + lockfile review on every PR to main, and a scheduled
+    # weekly audit regardless of PRs. The NPM audit side runs on both so a
+    # standalone fix commit triggers the same severity gate.
+    name: Dependency audit
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
-      - run: npm audit --omit=dev --audit-level=high
+      - name: Install frontend deps
+        run: npm ci
+      - name: Install functions deps
+        run: npm ci --prefix functions
+      - name: Audit frontend
+        run: npm audit --omit=dev --audit-level=high
+      - name: Audit functions
+        run: npm --prefix functions audit --omit=dev --audit-level=high

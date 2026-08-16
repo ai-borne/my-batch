@@ -7,11 +7,82 @@ on:
     branches: [main]
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
+  pull-requests: write
+  checks: write
+  # CodeQL needs security-events write to upload results.
+  security-events: write
 
 jobs:
-  verify:
+  source-quality:
+    name: Source quality (build + unit + coverage + controls)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install frontend deps
+        run: npm ci
+      - name: Type-check + build
+        run: npm run build
+      - name: Unit tests
+        run: npm test
+      - name: Coverage
+        run: npm run test:coverage
+      - name: Architecture constraints
+        run: npm run test:architecture
+      - name: Release controls
+        run: npm run release:controls
+
+  functions:
+    name: Functions (build + integration)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install functions deps
+        run: npm ci --prefix functions
+      - name: Functions integration tests (emulators)
+        run: npm run test:functions
+
+  rules:
+    name: Security rules
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install deps
+        run: npm ci
+      - name: Firestore/Storage rules tests
+        run: npm run test:rules
+
+  e2e:
+    name: End-to-end (Playwright)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -24,24 +95,57 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
-      - run: npm ci
-      - run: npm ci --prefix functions
-      - run: npx playwright install --with-deps chromium
-      - run: npm run build
-      - run: npm test
-      - run: npm run test:coverage
-      - run: npm run test:architecture
-      - run: npm run release:controls
-      - run: npm run test:rules
-      - run: npm run test:functions
-      - run: npm run test:e2e
-      - run: npm audit --omit=dev --audit-level=high
-      - if: always()
+      - name: Install frontend deps
+        run: npm ci
+      - name: Install functions deps
+        run: npm ci --prefix functions
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+      - name: Run Playwright tests
+        run: npm run test:e2e
+      - if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: verification-artifacts
+          name: playwright-artifacts
           if-no-files-found: ignore
           path: |
-            coverage/
             test-results/
             playwright-report/
+
+  dependency-audit:
+    name: Dependency audit (frontend + functions)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install deps
+        run: npm ci
+      - name: Install functions deps
+        run: npm ci --prefix functions
+      - name: Audit frontend
+        run: npm audit --omit=dev --audit-level=high
+      - name: Audit functions
+        run: npm --prefix functions audit --omit=dev --audit-level=high
+
+  static-analysis:
+    name: Static analysis (CodeQL)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v3
