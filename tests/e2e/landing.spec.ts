@@ -70,6 +70,20 @@ test('shell reflows without horizontal overflow at every launch viewport', async
     expect(await page.locator('body').evaluate((body) => body.scrollWidth <= body.clientWidth)).toBe(true)
     await expect(content).toBeVisible()
     // Launch gate: the primary content is not fully obscured by fixed chrome in the first viewport.
+    // Wait for the fixed chrome (banner/bottom-nav) to settle so the measurement
+    // reflects the final layout rather than a mid-render frame.
+    await content.evaluate((element) => new Promise<void>((resolve) => {
+      let last = element.getBoundingClientRect().top
+      let idleFrames = 0
+      const step = () => {
+        const top = element.getBoundingClientRect().top
+        if (top === last) idleFrames += 1
+        else { idleFrames = 0; last = top }
+        if (idleFrames >= 3) resolve()
+        else requestAnimationFrame(step)
+      }
+      requestAnimationFrame(step)
+    }))
     const unobscured = await content.evaluate((element) => {
       const bounds = element.getBoundingClientRect()
       const viewportHeight = window.innerHeight || document.documentElement.clientHeight

@@ -4,6 +4,7 @@ import { Firestore, connectFirestoreEmulator, getFirestore } from 'firebase/fire
 import { FirebaseStorage, connectStorageEmulator, getStorage } from 'firebase/storage'
 import { Functions, connectFunctionsEmulator, getFunctions } from 'firebase/functions'
 import { ReCaptchaEnterpriseProvider, initializeAppCheck } from 'firebase/app-check'
+import { appEnvironment } from './environment'
 
 const requiredKeys = ['VITE_FIREBASE_API_KEY', 'VITE_FIREBASE_AUTH_DOMAIN', 'VITE_FIREBASE_PROJECT_ID', 'VITE_FIREBASE_STORAGE_BUCKET', 'VITE_FIREBASE_APP_ID'] as const
 
@@ -29,7 +30,8 @@ const storageEmulatorPort = Number(import.meta.env.VITE_FIREBASE_STORAGE_EMULATO
 const functionsEmulatorPort = Number(import.meta.env.VITE_FIREBASE_FUNCTIONS_EMULATOR_PORT ?? 5001)
 export function firebaseServices(): { app: FirebaseApp; auth: Auth; db: Firestore; storage: FirebaseStorage; functions: Functions } {
   const app = getApps().length ? getApp() : initializeApp(config())
-  if (!appCheckInitialized && import.meta.env.PROD && import.meta.env.VITE_USE_FIREBASE_EMULATORS !== 'true') {
+  const environment = appEnvironment()
+  if (!appCheckInitialized && environment !== 'local') {
     const siteKey = import.meta.env.VITE_RECAPTCHA_ENTERPRISE_SITE_KEY
     if (!siteKey) throw new Error('Firebase App Check is missing VITE_RECAPTCHA_ENTERPRISE_SITE_KEY.')
     initializeAppCheck(app, { provider: new ReCaptchaEnterpriseProvider(siteKey), isTokenAutoRefreshEnabled: true })
@@ -39,7 +41,7 @@ export function firebaseServices(): { app: FirebaseApp; auth: Auth; db: Firestor
   const db = getFirestore(app)
   const storage = getStorage(app)
   const functions = getFunctions(app)
-  if (import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true' && !emulatorsConnected) {
+  if (environment === 'local' && !emulatorsConnected) {
     connectAuthEmulator(auth, `http://${emulatorHost}:${authEmulatorPort}`, { disableWarnings: true })
     connectFirestoreEmulator(db, emulatorHost, firestoreEmulatorPort)
     connectStorageEmulator(storage, emulatorHost, storageEmulatorPort)
