@@ -14,6 +14,7 @@ const environment = {
   VITE_FIREBASE_STORAGE_BUCKET: 'demo-no-project.appspot.com',
   VITE_FIREBASE_APP_ID: 'test',
   VITE_USE_FIREBASE_EMULATORS: 'true',
+  VITE_APP_ENV: 'local',
   VITE_E2E_AUTH: 'true',
   VITE_FIREBASE_AUTH_EMULATOR_PORT: authPort,
   VITE_FIREBASE_FIRESTORE_EMULATOR_PORT: firestorePort,
