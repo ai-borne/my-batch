@@ -12,7 +12,7 @@ export type DirectoryQuery = {
   limit: number
 }
 export type DirectoryMember = { uid: string; displayName: string; houseId: string | null; city: string | null; profession: string | null; avatarPath: string | null }
-export type DirectoryResult = { members: DirectoryMember[]; nextCursor: DirectoryCursor | null; hasMore: boolean }
+export type DirectoryResult = { members: DirectoryMember[]; nextCursor: DirectoryCursor | null; hasMore: boolean; houses?: DirectoryHouse[] }
 export type DirectoryHouse = { id: string; name: string; group: string; accent: string; crestLabel: string; memberCount: number }
 
 export function normalizeDirectoryQuery(query: DirectoryQuery): DirectoryQuery {

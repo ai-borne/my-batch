@@ -20,9 +20,9 @@ export function HousesPage() {
   const load = useCallback(async (next: DirectoryQuery, append = false) => {
     const normalized = normalizeDirectoryQuery(next); setState('loading')
     const request = { batchId: PILOT_BATCH_ID, limit: normalized.limit, sort: normalized.sort, ...(normalized.search ? { search: normalized.search } : {}), ...(Object.keys(normalized.filters ?? {}).length ? { filters: normalized.filters } : {}), ...(normalized.cursor ? { cursor: normalized.cursor } : {}) }
-    try { const result = await httpsCallable<typeof request, DirectoryResult>(firebaseServices().functions, 'listDirectoryMembers')(request); setMembers((current) => append ? [...current, ...result.data.members] : result.data.members); setNextCursor(result.data.nextCursor); setState(result.data.members.length || append ? 'ready' : 'empty') } catch (error) { if (!append) setMembers([]); setState(failureState(error)) }
+    try { const result = await httpsCallable<typeof request, DirectoryResult>(firebaseServices().functions, 'listDirectory')(request); setMembers((current) => append ? [...current, ...result.data.members] : result.data.members); if (result.data.houses) setHouses(result.data.houses); setNextCursor(result.data.nextCursor); setState(result.data.members.length || append ? 'ready' : 'empty') } catch (error) { if (!append) setMembers([]); setState(failureState(error)) }
   }, [])
-  useEffect(() => { void load(initialQuery); void httpsCallable<{ batchId: string }, { houses: DirectoryHouse[] }>(firebaseServices().functions, 'listDirectoryHouses')({ batchId: PILOT_BATCH_ID }).then((result) => setHouses(result.data.houses)).catch(() => setHouses([])) }, [load])
+  useEffect(() => { void load(initialQuery) }, [load])
   function apply(next: DirectoryQuery) { const normalized = normalizeDirectoryQuery(next); setQuery(normalized); void load(normalized) }
   function filter(key: 'house' | 'city' | 'profession', value: string) { apply({ ...query, cursor: undefined, filters: value ? { [key]: value } : {} }) }
   function selectHouse(houseId: string) { filter('house', query.filters?.house === houseId ? '' : houseId) }

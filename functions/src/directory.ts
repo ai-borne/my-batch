@@ -40,9 +40,9 @@ function input(data: Record<string, unknown>) {
   return { search, filters: normalizedFilters, sort, limit: Number(limit), cursor: cursor as Cursor | undefined }
 }
 
-export const listDirectoryMembers = secureCall(async (request) => {
+export const listDirectory = secureCall(async (request) => {
   const { batchId, ...data } = request.data as Record<string, unknown>
-  requireBatchId(batchId); const uid = requireUid(request.auth); await requireActiveMember(batchId, uid); await limitCallable(batchId, uid, 'listDirectoryMembers')
+  requireBatchId(batchId); const uid = requireUid(request.auth); await requireActiveMember(batchId, uid); await limitCallable(batchId, uid, 'listDirectory')
   const queryInput = input(data); let profiles: FirebaseFirestore.Query = db.collection(`batches/${batchId}/directoryMembers`)
   const fieldByFilter = { house: 'directoryHouseId', city: 'directoryCity', profession: 'directoryProfession' } as const
   for (const [filter, value] of Object.entries(queryInput.filters)) profiles = profiles.where(fieldByFilter[filter as keyof typeof fieldByFilter], '==', value)
@@ -50,23 +50,29 @@ export const listDirectoryMembers = secureCall(async (request) => {
   profiles = queryInput.sort === 'house' ? profiles.orderBy('directoryHouseId').orderBy('directoryDisplayName').orderBy(FieldPath.documentId()) : profiles.orderBy('directoryDisplayName').orderBy(FieldPath.documentId())
   if (queryInput.cursor) profiles = queryInput.sort === 'house' ? profiles.startAfter(queryInput.cursor.houseId ?? '', queryInput.cursor.displayName, queryInput.cursor.uid) : profiles.startAfter(queryInput.cursor.displayName, queryInput.cursor.uid)
   const page = await profiles.limit(queryInput.limit + 1).get(); const visible = page.docs.slice(0, queryInput.limit)
+  const members = visible.map((profile) => {
+    const data = profile.data()
+    return { uid: profile.id, displayName: typeof data.displayName === 'string' && data.displayName.trim() ? data.displayName : 'Batchmate', houseId: typeof data.houseId === 'string' ? data.houseId : null, city: typeof data.city === 'string' ? data.city : null, profession: typeof data.profession === 'string' ? data.profession : null, avatarPath: typeof data.avatarPath === 'string' ? data.avatarPath : null }
+  })
   const last = visible.at(-1)
+  const housesPayload = queryInput.cursor ? undefined : await buildHouseCountsFor(batchId)
   return {
-    members: visible.map((profile) => {
-      const data = profile.data()
-      return { uid: profile.id, displayName: typeof data.displayName === 'string' && data.displayName.trim() ? data.displayName : 'Batchmate', houseId: typeof data.houseId === 'string' ? data.houseId : null, city: typeof data.city === 'string' ? data.city : null, profession: typeof data.profession === 'string' ? data.profession : null, avatarPath: typeof data.avatarPath === 'string' ? data.avatarPath : null }
-    }),
+    members,
     nextCursor: page.size > queryInput.limit && last ? { displayName: String(last.data().directoryDisplayName), uid: last.id, ...(queryInput.sort === 'house' ? { houseId: String(last.data().directoryHouseId ?? '') } : {}) } : null,
     hasMore: page.size > queryInput.limit,
+    ...(housesPayload ? { houses: housesPayload } : {}),
   }
 })
 
-export const listDirectoryHouses = secureCall(async (request) => {
-  const { batchId } = request.data as { batchId?: unknown }
-  requireBatchId(batchId); const uid = requireUid(request.auth); await requireActiveMember(batchId, uid); await limitCallable(batchId, uid, 'listDirectoryHouses')
-  const counts = await Promise.all(houses.map(async (house) => ({ id: house.id, memberCount: (await db.collection(`batches/${batchId}/directoryMembers`).where('directoryHouseId', '==', house.id).count().get()).data().count })))
-  return { houses: houses.map((house) => ({ ...house, memberCount: counts.find((count) => count.id === house.id)?.memberCount ?? 0 })) }
-})
+async function buildHouseCountsFor(batchId: string) {
+  const allMembers = await db.collection(`batches/${batchId}/directoryMembers`).select('directoryHouseId').get()
+  const countsByHouse = new Map<string, number>()
+  for (const member of allMembers.docs) {
+    const houseId = member.data().directoryHouseId as string | null
+    if (houseId) countsByHouse.set(houseId, (countsByHouse.get(houseId) ?? 0) + 1)
+  }
+  return houses.map((house) => ({ ...house, memberCount: countsByHouse.get(house.id) ?? 0 }))
+}
 
 async function syncDirectoryMember(batchId: string, uid: string) {
   const target = db.doc(`batches/${batchId}/directoryMembers/${uid}`); const profile = await db.doc(`batches/${batchId}/profiles/${uid}`).get()
